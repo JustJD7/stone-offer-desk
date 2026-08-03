@@ -1,4 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <!-- Stone Offer Desk — live, multi-office -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stone Offer Desk — Client Offer Management</title>
 <style>
   :root {
@@ -372,6 +377,8 @@
     .modal-body { grid-template-columns: 1fr; }
   }
 </style>
+</head>
+<body>
 
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
@@ -1805,11 +1812,17 @@
     var password = document.getElementById("login-password").value;
     var errEl = document.getElementById("loginError");
     errEl.textContent = "";
+    var data;
     try {
-      var data = await api("POST", "/api/auth/login", { username: username, password: password });
-      await bootApp(data.office);
+      data = await api("POST", "/api/auth/login", { username: username, password: password });
     } catch (err) {
       errEl.textContent = "Invalid username or password.";
+      return;
+    }
+    try {
+      await bootApp(data.office);
+    } catch (err) {
+      errEl.textContent = "Signed in, but couldn't load the app: " + err.message;
     }
   });
   document.getElementById("logoutBtn").addEventListener("click", async function () {
@@ -1823,3 +1836,5 @@
   api("GET", "/api/auth/me").then(function (data) { return bootApp(data.office); }).catch(function () { showLogin(); });
 })();
 </script>
+</body>
+</html>
