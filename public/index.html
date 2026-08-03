@@ -1,0 +1,1825 @@
+<!-- Stone Offer Desk — live, multi-office -->
+<title>Stone Offer Desk — Client Offer Management</title>
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface-2: #ECE8DF;
+    --border: #DEDACC;
+    --ink: #221F1A;
+    --ink-2: #56503F;
+    --ink-muted: #918B77;
+    --accent: #8A6A26;
+    --accent-strong: #6E5419;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #F1E6C9;
+    --status-new: #5B6472;
+    --status-new-soft: #E7E6E1;
+    --status-review: #6E4FB0;
+    --status-review-soft: #EAE2F7;
+    --status-negotiating: #2864A0;
+    --status-negotiating-soft: #DFEAF6;
+    --status-accepted: #227A4C;
+    --status-accepted-soft: #DEF0E4;
+    --status-rejected: #AE3A26;
+    --status-rejected-soft: #F6E2DD;
+    --type-sell: #146B60;
+    --type-sell-soft: #DCEEEA;
+    --type-buy: #7C3F86;
+    --type-buy-soft: #F1E1F1;
+    --shadow: 0 1px 2px rgba(30,26,16,.06), 0 8px 24px -12px rgba(30,26,16,.18);
+    --font-display: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171310; --surface: #221D16; --surface-2: #2B2419; --border: #3B331F;
+      --ink: #F3EFE4; --ink-2: #CBC4AF; --ink-muted: #948D77;
+      --accent: #D8B15F; --accent-strong: #E8C578; --accent-ink: #211705; --accent-soft: #3A2E15;
+      --status-new: #9AA5B8; --status-new-soft: #2B2E36;
+      --status-review: #B49BE8; --status-review-soft: #322B44;
+      --status-negotiating: #7FB0E6; --status-negotiating-soft: #223243;
+      --status-accepted: #6FCB9A; --status-accepted-soft: #1E3327;
+      --status-rejected: #E2876F; --status-rejected-soft: #3B241D;
+      --type-sell: #5FC7B8; --type-sell-soft: #1B3733;
+      --type-buy: #D699DD; --type-buy-soft: #37243A;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171310; --surface: #221D16; --surface-2: #2B2419; --border: #3B331F;
+    --ink: #F3EFE4; --ink-2: #CBC4AF; --ink-muted: #948D77;
+    --accent: #D8B15F; --accent-strong: #E8C578; --accent-ink: #211705; --accent-soft: #3A2E15;
+    --status-new: #9AA5B8; --status-new-soft: #2B2E36;
+    --status-review: #B49BE8; --status-review-soft: #322B44;
+    --status-negotiating: #7FB0E6; --status-negotiating-soft: #223243;
+    --status-accepted: #6FCB9A; --status-accepted-soft: #1E3327;
+    --status-rejected: #E2876F; --status-rejected-soft: #3B241D;
+    --type-sell: #5FC7B8; --type-sell-soft: #1B3733;
+    --type-buy: #D699DD; --type-buy-soft: #37243A;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    --bg: #F5F3EE; --surface: #FFFFFF; --surface-2: #ECE8DF; --border: #DEDACC;
+    --ink: #221F1A; --ink-2: #56503F; --ink-muted: #918B77;
+    --accent: #8A6A26; --accent-strong: #6E5419; --accent-ink: #FFFFFF; --accent-soft: #F1E6C9;
+    --status-new: #5B6472; --status-new-soft: #E7E6E1;
+    --status-review: #6E4FB0; --status-review-soft: #EAE2F7;
+    --status-negotiating: #2864A0; --status-negotiating-soft: #DFEAF6;
+    --status-accepted: #227A4C; --status-accepted-soft: #DEF0E4;
+    --status-rejected: #AE3A26; --status-rejected-soft: #F6E2DD;
+    --type-sell: #146B60; --type-sell-soft: #DCEEEA;
+    --type-buy: #7C3F86; --type-buy-soft: #F1E1F1;
+    --shadow: 0 1px 2px rgba(30,26,16,.06), 0 8px 24px -12px rgba(30,26,16,.18);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 1500px; margin: 0 auto; padding: 20px 24px 60px; }
+
+  /* ---------- Login ---------- */
+  .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 32px 30px; width: 100%; max-width: 380px; }
+  .login-card h1 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0 0 4px; }
+  .login-card p.sub { color: var(--ink-muted); font-size: 12.5px; margin: 0 0 20px; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); font-weight: 600; margin-bottom: 5px; }
+  .login-field input { width: 100%; font-family: var(--font-body); font-size: 14px; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+  .login-error { color: var(--status-rejected); font-size: 12.5px; margin: -4px 0 12px; min-height: 1em; }
+  .office-label { font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
+
+  /* ---------- Header ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 38px; height: 38px; flex: none; color: var(--accent); }
+  .brand h1 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0; letter-spacing: .2px; }
+  .brand p { margin: 2px 0 0; color: var(--ink-muted); font-size: 12.5px; }
+  .btn {
+    font-family: var(--font-body); font-size: 13.5px; font-weight: 600;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink); padding: 9px 16px; cursor: pointer; display: inline-flex;
+    align-items: center; gap: 8px; transition: background .12s, border-color .12s, transform .05s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-ghost { border-color: transparent; background: transparent; }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-sm { padding: 6px 11px; font-size: 12.5px; border-radius: 7px; }
+  .btn-file { position: relative; overflow: hidden; }
+  .btn-file input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .btn-danger { color: var(--status-rejected); }
+
+  /* ---------- Notifications ---------- */
+  .notif-wrap { position: relative; }
+  .notif-bell { position: relative; font-size: 16px; padding: 8px 10px; }
+  .notif-badge {
+    position: absolute; top: 2px; right: 2px; background: var(--status-rejected); color: #fff; font-size: 10px;
+    font-weight: 700; border-radius: 100px; min-width: 16px; height: 16px; line-height: 16px; text-align: center; padding: 0 3px;
+  }
+  .notif-badge[hidden] { display: none; }
+  .notif-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: 340px; max-height: 420px; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 70;
+  }
+  .notif-dropdown[hidden] { display: none; }
+  .notif-dropdown-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 13px; }
+  .notif-item { display: block; width: 100%; text-align: left; padding: 10px 14px; border: none; background: none; border-bottom: 1px solid var(--border); cursor: pointer; font-family: inherit; color: inherit; }
+  .notif-item:hover { background: var(--surface-2); }
+  .notif-item.unread { background: var(--accent-soft); }
+  .notif-item-text { font-size: 12.5px; margin-bottom: 3px; }
+  .notif-item-time { font-size: 11px; color: var(--ink-muted); }
+  .notif-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--status-rejected); margin-right: 6px; }
+
+  .pipeline-card { position: relative; }
+  .card-unread-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--status-rejected); box-shadow: 0 0 0 2px var(--surface-2); }
+
+  /* ---------- Celebration ---------- */
+  .celebrate-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; display: none; }
+  .celebrate-overlay.show { display: block; }
+  .celebrate-msg {
+    position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%) scale(.6); opacity: 0;
+    font-family: var(--font-display); font-size: clamp(26px,5vw,50px); color: var(--accent-strong); text-align: center;
+    text-shadow: 0 2px 18px rgba(0,0,0,.25); animation: celebrate-pop 2.6s ease forwards; white-space: nowrap;
+  }
+  @keyframes celebrate-pop {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+    15% { opacity: 1; transform: translate(-50%,-50%) scale(1.08); }
+    25% { transform: translate(-50%,-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1.02); }
+  }
+  .confetti-piece { position: absolute; top: -20px; width: 9px; height: 14px; opacity: .9; animation-name: confetti-fall; animation-timing-function: cubic-bezier(.35,.65,.55,1); animation-fill-mode: forwards; }
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(108vh) rotate(720deg); opacity: .9; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti-piece { display: none; }
+    .celebrate-msg { animation: none; opacity: 1; }
+  }
+
+  /* ---------- Tabs ---------- */
+  .tabbar { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .tab-btn { font-family: var(--font-body); font-size: 13.5px; font-weight: 700; padding: 10px 16px; border: none; background: none; color: var(--ink-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--ink-2); }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab-panel[hidden] { display: none; }
+
+  /* ---------- Stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .stat-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-muted); font-weight: 600; margin-bottom: 6px; }
+  .stat-value { font-family: var(--font-display); font-size: 26px; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat-sub { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+  .stat-sub.pos { color: var(--status-accepted); }
+
+  /* ---------- Panels / toolbar ---------- */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: var(--surface-2); }
+  .toolbar input[type="search"], .toolbar select {
+    font-family: var(--font-body); font-size: 13px; padding: 8px 10px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  .toolbar input[type="search"] { flex: 1 1 160px; min-width: 140px; }
+  .toolbar select { flex: 0 0 auto; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .3px; padding: 3px 8px; border-radius: 100px; white-space: nowrap;
+  }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .pill-new { background: var(--status-new-soft); color: var(--status-new); }
+  .pill-review { background: var(--status-review-soft); color: var(--status-review); }
+  .pill-negotiating { background: var(--status-negotiating-soft); color: var(--status-negotiating); }
+  .pill-accepted { background: var(--status-accepted-soft); color: var(--status-accepted); }
+  .pill-rejected { background: var(--status-rejected-soft); color: var(--status-rejected); }
+  .pill-sell { background: var(--type-sell-soft); color: var(--type-sell); }
+  .pill-buy { background: var(--type-buy-soft); color: var(--type-buy); }
+  .pill-priority { background: var(--status-rejected-soft); color: var(--status-rejected); }
+
+  .empty-state { padding: 40px 20px; text-align: center; color: var(--ink-muted); }
+
+  /* ---------- Pipeline (Kanban) board ---------- */
+  .pipeline-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; }
+  .pipeline-col { flex: 0 0 270px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; max-height: 76vh; }
+  .pipeline-col-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; color: var(--ink-2); }
+  .pipeline-col-count { background: var(--surface-2); color: var(--ink-muted); border-radius: 100px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+  .pipeline-col-value { padding: 0 14px 10px; font-size: 11.5px; color: var(--ink-muted); border-bottom: 1px solid var(--border); }
+  .pipeline-col-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .pipeline-col-body.drag-over { background: var(--accent-soft); }
+  .pipeline-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 11px; cursor: grab; font-size: 12.5px; }
+  .pipeline-card:active { cursor: grabbing; }
+  .pipeline-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+  .pipeline-card-client { font-weight: 700; font-size: 13px; }
+  .pipeline-card-spec { color: var(--ink-2); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .pipeline-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
+  /* ---------- Detail drawer ---------- */
+  .drawer-overlay { position: fixed; inset: 0; background: rgba(20,17,10,.4); display: none; z-index: 60; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(560px, 94vw); background: var(--surface); box-shadow: -8px 0 32px -12px rgba(0,0,0,.35); transform: translateX(100%); transition: transform .18s ease; display: flex; flex-direction: column; }
+  .drawer-overlay.open .drawer { transform: translateX(0); }
+  .drawer-head { display: flex; justify-content: space-between; padding: 12px 16px 0; flex: none; }
+  .detail-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .detail-scroll { overflow-y: auto; flex: 1; }
+  .detail-empty { padding: 60px 24px; text-align: center; color: var(--ink-muted); }
+  .detail-empty svg { width: 44px; height: 44px; color: var(--border); margin-bottom: 12px; }
+
+  .detail-header { padding: 6px 20px 14px; border-bottom: 1px solid var(--border); }
+  .detail-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .detail-header h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0 0 3px; }
+  .detail-sub { color: var(--ink-muted); font-size: 12.5px; }
+  .detail-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+  .stepper { display: flex; gap: 6px; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .step-btn {
+    flex: 1 1 0; min-width: 74px; text-align: center; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .3px; padding: 8px 4px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink-muted); cursor: pointer;
+  }
+  .step-btn.done { color: var(--ink-2); }
+  .step-btn.is-current { border-color: currentColor; }
+  .step-btn[data-step="new"].is-current { background: var(--status-new-soft); color: var(--status-new); }
+  .step-btn[data-step="review"].is-current { background: var(--status-review-soft); color: var(--status-review); }
+  .step-btn[data-step="negotiating"].is-current { background: var(--status-negotiating-soft); color: var(--status-negotiating); }
+  .step-btn[data-step="accepted"].is-current { background: var(--status-accepted-soft); color: var(--status-accepted); }
+  .step-btn[data-step="rejected"].is-current { background: var(--status-rejected-soft); color: var(--status-rejected); }
+
+  .spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .spec-item .spec-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); margin-bottom: 3px; }
+  .spec-item .spec-value { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .spec-item.wide { grid-column: span 3; }
+  .cert-value { font-family: var(--font-mono); font-size: 12.5px; }
+
+  .price-block { padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .price-block-top { display: flex; align-items: baseline; justify-content: space-between; }
+  .price-block .price-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); }
+  .price-block .price-main { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .price-block .price-note { font-size: 12px; color: var(--ink-muted); }
+
+  .compare-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 10px; font-size: 12.5px; }
+  .compare-row { display: flex; justify-content: space-between; padding: 3px 0; font-variant-numeric: tabular-nums; }
+  .compare-row.good { color: var(--status-accepted); font-weight: 700; }
+  .compare-row.bad { color: var(--status-rejected); font-weight: 700; }
+
+  .notes-block { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink-2); }
+  .notes-block .spec-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); margin-bottom: 5px; }
+
+  .thread-block { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .thread-block:last-child { border-bottom: none; }
+  .thread-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); margin-bottom: 10px; font-weight: 700; }
+  .thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .msg { max-width: 86%; padding: 9px 12px; border-radius: 11px; font-size: 13px; position: relative; }
+  .msg-company { align-self: flex-end; background: var(--accent-soft); border-bottom-right-radius: 3px; }
+  .msg-client { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 3px; }
+  .msg-meta { display: flex; gap: 8px; align-items: center; font-size: 10.5px; color: var(--ink-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; font-weight: 700; }
+  .msg-price { display: inline-block; margin-top: 6px; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--accent-strong); }
+
+  .msg-form { border-top: 1px solid var(--border); padding-top: 14px; }
+  .msg-form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .msg-form textarea {
+    width: 100%; font-family: var(--font-body); font-size: 13px; padding: 9px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); resize: vertical; min-height: 56px;
+  }
+  .msg-form-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .seg button { font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 6px 10px; border: none; background: var(--surface); color: var(--ink-muted); cursor: pointer; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .price-input { width: 150px; font-family: var(--font-body); font-size: 12.5px; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+
+  /* ---------- Matched stones ---------- */
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--ink); font-size: 12px; padding: 5px 9px; border-radius: 100px; }
+  .chip-link { text-decoration: none; line-height: 1; }
+  .chip-remove { border: none; background: none; color: var(--ink-muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+  .chip-remove:hover { color: var(--status-rejected); }
+  .match-search-input {
+    width: 100%; font-family: var(--font-body); font-size: 13px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink); margin-bottom: 8px;
+  }
+  .match-results { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+  .match-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; }
+  .match-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- Connection bar (Inventory / Clients) ---------- */
+  .conn-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; flex-wrap: wrap; }
+  .conn-status { font-size: 13px; color: var(--ink-2); }
+  .conn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---------- Data tables (Inventory / Clients) ---------- */
+  .table-scroll { overflow-x: auto; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
+  .data-table th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-muted);
+    font-weight: 700; padding: 9px 10px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap;
+  }
+  .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table tbody tr:hover { background: var(--surface-2); }
+  .data-table tbody tr[data-stone] { cursor: pointer; }
+  .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+  .pager { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; font-size: 12.5px; color: var(--ink-muted); flex-wrap: wrap; gap: 8px; }
+  .pager-controls { display: flex; align-items: center; gap: 10px; }
+
+  .kv-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+  .kv-key { flex: 0 0 190px; color: var(--ink-muted); font-weight: 600; }
+  .kv-val { flex: 1; word-break: break-word; }
+  .kv-val a { color: var(--accent-strong); }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(20,17,10,.45); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 50; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 14px; border: 1px solid var(--border); width: 100%; max-width: 640px; box-shadow: var(--shadow); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+  .modal-header h3 { font-family: var(--font-display); font-weight: 400; font-size: 19px; margin: 0; }
+  .modal-body { padding: 20px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  .modal-body .field.wide { grid-column: 1 / -1; }
+  .field label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); font-weight: 600; margin-bottom: 5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; font-family: var(--font-body); font-size: 13.5px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .type-toggle { display: flex; gap: 8px; grid-column: 1/-1; }
+  .type-toggle label { flex: 1; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .type-toggle input { width: auto; margin: 0; }
+  .type-toggle label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; grid-column: 1/-1; }
+  .checkbox-row input { width: auto; }
+  .checkbox-row label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink); }
+  .hint { font-size: 11.5px; color: var(--ink-muted); grid-column: 1/-1; margin-top: -6px; }
+  .lookup-status { font-size: 12px; padding: 4px 0; grid-column: 1/-1; }
+  .lookup-status.ok { color: var(--status-accepted); }
+  .lookup-status.muted { color: var(--ink-muted); }
+
+  @media (max-width: 980px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .modal-body { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>Stone Offer Desk</h1>
+    <p class="sub">Sign in with your office's shared login.</p>
+    <form id="loginForm">
+      <div class="login-field"><label for="login-username">Username</label><input id="login-username" autocomplete="username" required></div>
+      <div class="login-field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<div id="appRoot" hidden>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M9 16 L24 4 L39 16 L24 44 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+          <path d="M9 16 L39 16" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M17 16 L24 4 L31 16" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M9 16 L24 44 M39 16 L24 44 M17 16 L24 44 M31 16 L24 44" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        <div>
+          <h1>Stone Offer Desk</h1>
+          <p>Client offers, requirements &amp; inventory — track, negotiate, close</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="office-label" id="officeLabel"></span>
+        <div class="notif-wrap">
+          <button class="btn btn-ghost notif-bell" id="notifBellBtn" type="button" aria-label="Notifications">🔔<span class="notif-badge" id="notifBadge" hidden>0</span></button>
+          <div class="notif-dropdown" id="notifDropdown" hidden>
+            <div class="notif-dropdown-head"><span>Notifications</span><button type="button" class="btn btn-sm btn-ghost" id="notifMarkAllBtn">Mark all read</button></div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="newOfferBtn" type="button">+ New Offer</button>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">Log out</button>
+      </div>
+    </header>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button type="button" class="tab-btn active" data-tab="offers">Offers Pipeline</button>
+      <button type="button" class="tab-btn" data-tab="inventory">Inventory (AutoMail)</button>
+      <button type="button" class="tab-btn" data-tab="clients">Clients</button>
+    </nav>
+
+    <section class="tab-panel" id="tab-offers">
+      <section class="stats" id="statsRow" aria-label="Pipeline summary"></section>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="toolbar">
+          <input type="search" id="searchInput" placeholder="Search client, shape, notes…" aria-label="Search offers">
+          <select id="typeFilter" aria-label="Filter by type">
+            <option value="all">All types</option>
+            <option value="sell">Offering stone</option>
+            <option value="buy">Requirement</option>
+          </select>
+          <select id="statusFilter" aria-label="Filter by status">
+            <option value="all">All stages</option>
+            <option value="new">New</option>
+            <option value="review">Under review</option>
+            <option value="negotiating">Negotiating</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select id="sortOrder" aria-label="Sort offers">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="priority">Priority first</option>
+            <option value="value">Value: high to low</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="pipeline-board" id="pipelineBoard" aria-label="Offer pipeline"></div>
+    </section>
+
+    <section class="tab-panel" id="tab-inventory" hidden>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="conn-bar">
+          <div class="conn-status" id="invConnStatus">Loading inventory…</div>
+          <div class="conn-actions">
+            <button class="btn btn-sm" id="connectAutoMailBtn" type="button">Connect AutoMail.xlsx</button>
+            <button class="btn btn-sm" id="refreshAutoMailBtn" type="button" hidden>Refresh Now</button>
+            <label class="btn btn-sm btn-ghost btn-file">Upload manually<input type="file" id="manualInventoryUpload" accept=".xlsx"></label>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <input type="search" id="invSearch" placeholder="Search stone ID, shape, lab, location…">
+          <select id="invShapeFilter"><option value="all">All shapes</option></select>
+          <select id="invStatusFilter"><option value="all">All statuses</option></select>
+          <select id="invSort">
+            <option value="default">Default order</option>
+            <option value="carat_desc">Carat: high to low</option>
+            <option value="carat_asc">Carat: low to high</option>
+            <option value="rate_desc">Rate: high to low</option>
+            <option value="rate_asc">Rate: low to high</option>
+          </select>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table" id="invTable">
+            <thead>
+              <tr>
+                <th>Stone ID</th><th>Shape</th><th class="num">Carat</th><th>Color</th><th>Clarity</th>
+                <th>Cut</th><th>Polish</th><th>Symmetry</th><th>Fluor.</th><th>Lab</th><th>Report No</th>
+                <th class="num">Back</th><th class="num">Rate/ct</th><th class="num">Amount</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager" id="invPager"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-clients" hidden>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="conn-bar">
+          <div class="conn-status" id="clientImportStatus">Loading clients…</div>
+          <div class="conn-actions">
+            <label class="btn btn-sm btn-file">Import Client List (Excel)<input type="file" id="clientImportUpload" accept=".xlsx"></label>
+            <button class="btn btn-sm btn-primary" id="addClientBtn" type="button">+ Add Client</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <input type="search" id="clientSearch" placeholder="Search clients…">
+          <select id="clientCountryFilter"><option value="all">All countries</option></select>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table" id="clientTable">
+            <thead><tr><th>Entity Name</th><th>Country</th><th>Stock Category</th><th class="num">Offers</th><th>Source</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <datalist id="clientOptions"></datalist>
+  <datalist id="shapeOptions">
+    <option value="Round"></option><option value="Princess"></option><option value="Cushion"></option>
+    <option value="Emerald"></option><option value="Oval"></option><option value="Pear"></option>
+    <option value="Marquise"></option><option value="Radiant"></option>
+  </datalist>
+
+  <div class="drawer-overlay" id="drawerOverlay">
+    <div class="drawer">
+      <div class="drawer-head">
+        <button type="button" class="btn btn-ghost btn-sm btn-danger" id="deleteOfferBtn">Delete Offer</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="drawerCloseBtn">Close ✕</button>
+      </div>
+      <div class="detail-panel" id="detailPanel"></div>
+    </div>
+  </div>
+
+  <div class="celebrate-overlay" id="celebrateOverlay" aria-hidden="true"></div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <form id="offerForm">
+        <div class="modal-header">
+          <h3 id="modalTitle">Log a new client offer</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="modalClose" aria-label="Close">Close</button>
+        </div>
+        <div class="modal-body">
+          <div class="type-toggle">
+            <label><input type="radio" name="offerType" value="sell" checked> Client is offering a stone to sell</label>
+            <label><input type="radio" name="offerType" value="buy"> Client has a stone requirement</label>
+          </div>
+
+          <div class="field wide"><label for="f-stoneLookup">Link one of our stones (optional)</label>
+            <input id="f-stoneLookup" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>
+          <div class="hint" id="f-stoneLookupHint">If this deal concerns a specific stone we already hold, look it up here — it fills in the fields below for you, still editable.</div>
+          <div id="f-stoneLookupResults"></div>
+
+          <div class="field wide"><label for="f-client">Client (entity name)</label><input id="f-client" list="clientOptions" required autocomplete="off"></div>
+          <div class="hint">Type an existing client name or a new one — new names are added to the Clients directory automatically.</div>
+          <div class="field"><label for="f-contact">Contact (phone / email)</label><input id="f-contact"></div>
+          <div class="field">
+            <label for="f-channel">Received via</label>
+            <select id="f-channel">
+              <option>WhatsApp</option><option>Phone</option><option>Email</option>
+              <option>In Person</option><option>Website Inquiry</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-shape">Shape</label><input id="f-shape" list="shapeOptions" placeholder="e.g. Round" required></div>
+          <div class="field"><label for="f-carat">Carat</label><input id="f-carat" type="text" placeholder="e.g. 2.15 or 1.5–2.0" required></div>
+          <div class="field"><label for="f-color">Color</label><input id="f-color" placeholder="e.g. F or D–G" required></div>
+          <div class="field"><label for="f-clarity">Clarity</label><input id="f-clarity" placeholder="e.g. VS1 or VVS–VS"></div>
+          <div class="field"><label for="f-cut">Cut</label><input id="f-cut" placeholder="e.g. Excellent"></div>
+          <div class="field"><label for="f-cert">Certificate</label><input id="f-cert" placeholder="e.g. GIA 2141567890"></div>
+          <div class="field">
+            <label for="f-priceType" id="f-priceType-label">Price type</label>
+            <select id="f-priceType">
+              <option value="per_carat">Rate ($ per carat)</option>
+              <option value="total">Amt (flat total $)</option>
+              <option value="back">Back (% off Rapaport)</option>
+            </select>
+          </div>
+          <div class="field"><label id="f-price-label" for="f-price">Asking price (USD)</label><input id="f-price" type="number" step="0.01" required></div>
+          <div class="field wide"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="Anything the negotiating team should know…"></textarea></div>
+          <div class="checkbox-row"><input type="checkbox" id="f-priority"><label for="f-priority">Mark as high priority</label></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="modalCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save offer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="clientModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;">
+      <form id="clientForm">
+        <div class="modal-header">
+          <h3 id="clientModalTitle">Add a new client</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="clientModalClose" aria-label="Close">Close</button>
+        </div>
+        <div class="modal-body" style="grid-template-columns:1fr;">
+          <div class="field"><label for="cf-name">Entity name</label><input id="cf-name" required></div>
+          <div class="field"><label for="cf-country">Country</label><input id="cf-country"></div>
+          <div class="field"><label for="cf-category">Stock category</label><input id="cf-category" placeholder="e.g. Polished Diamonds"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="clientModalCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="clientModalSave">Add client</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="stoneModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:640px;">
+      <div class="modal-header">
+        <h3 id="stoneModalTitle">Stone detail</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="stoneModalClose" aria-label="Close">Close</button>
+      </div>
+      <div class="modal-body" style="grid-template-columns:1fr; max-height:60vh; overflow-y:auto;" id="stoneModalBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STATUS_LABELS = { new: "New", review: "Under Review", negotiating: "Negotiating", accepted: "Accepted", rejected: "Rejected" };
+  var STATUS_ORDER = ["new", "review", "negotiating", "accepted", "rejected"];
+  var INV_PAGE_SIZE = 50;
+  var POLL_INTERVAL_MS = 18000;
+  var IDB_NAME = "stoneOfferDeskFS";
+  var IDB_STORE = "handles";
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function money(n) { return "$" + Math.round(Number(n || 0)).toLocaleString("en-US"); }
+  function isUrl(v) { return typeof v === "string" && /^https?:\/\//i.test(v.trim()); }
+  function linkify(v) { return isUrl(v) ? '<a href="' + esc(v) + '" target="_blank" rel="noopener noreferrer">' + esc(v) + "</a>" : esc(v); }
+
+  /* =========================================================================
+     API CLIENT
+  ========================================================================= */
+  function api(method, path, body) {
+    var opts = { method: method, credentials: "same-origin" };
+    if (body !== undefined) { opts.headers = { "Content-Type": "application/json" }; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (res.status === 401) { showLogin(); var authErr = new Error("Not authenticated"); authErr.status = 401; throw authErr; }
+        if (!res.ok) { var err = new Error((data && data.error) || ("Request failed: " + res.status)); err.status = res.status; err.data = data; throw err; }
+        return data;
+      });
+    });
+  }
+
+  /* =========================================================================
+     STATE
+  ========================================================================= */
+  var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [];
+  var automailHandle = null;
+  var selectedId = null;
+  var matchQueries = {};
+  var currentInvPage = 0;
+  var editingClientId = null;
+  var linkedStoneForNewOffer = null;
+  var pollTimer = null;
+
+  function clientById(id) { for (var i = 0; i < clients.length; i++) if (clients[i].id === id) return clients[i]; return null; }
+
+  /* ---- IndexedDB — persists the File System Access handle across reloads ---- */
+  function idbOpen() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  function idbGet(key) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(IDB_STORE, "readonly");
+        var req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+  function idbSet(key, value) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  /* =========================================================================
+     MINIMAL XLSX PARSER (browser-side, unchanged) — parses the file locally;
+     results are then uploaded to the shared API rather than kept only here.
+  ========================================================================= */
+  function readUInt16LE(b, o) { return b[o] | (b[o + 1] << 8); }
+  function readUInt32LE(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+
+  function findEOCD(bytes) {
+    var minI = Math.max(0, bytes.length - 65557);
+    for (var i = bytes.length - 22; i >= minI; i--) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) return i;
+    }
+    throw new Error("Not a valid .xlsx file (zip end-of-directory not found)");
+  }
+
+  function readZipEntries(bytes) {
+    var eocd = findEOCD(bytes);
+    var cdEntries = readUInt16LE(bytes, eocd + 10);
+    var cdOffset = readUInt32LE(bytes, eocd + 16);
+    var entries = {};
+    var dec = new TextDecoder("utf-8");
+    var p = cdOffset;
+    for (var i = 0; i < cdEntries; i++) {
+      var method = readUInt16LE(bytes, p + 10);
+      var compSize = readUInt32LE(bytes, p + 20);
+      var nameLen = readUInt16LE(bytes, p + 28);
+      var extraLen = readUInt16LE(bytes, p + 30);
+      var commentLen = readUInt16LE(bytes, p + 32);
+      var localOffset = readUInt32LE(bytes, p + 42);
+      var name = dec.decode(bytes.slice(p + 46, p + 46 + nameLen));
+      entries[name] = { method: method, compSize: compSize, localOffset: localOffset };
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+  }
+
+  function inflateRawBytes(bytes) {
+    var ds = new DecompressionStream("deflate-raw");
+    var stream = new Blob([bytes]).stream().pipeThrough(ds);
+    return new Response(stream).arrayBuffer().then(function (buf) { return new Uint8Array(buf); });
+  }
+
+  function getEntryText(bytes, entries, name) {
+    var entry = entries[name];
+    if (!entry) return Promise.resolve(null);
+    var p = entry.localOffset;
+    var nameLen = readUInt16LE(bytes, p + 26);
+    var extraLen = readUInt16LE(bytes, p + 28);
+    var dataStart = p + 30 + nameLen + extraLen;
+    var compData = bytes.slice(dataStart, dataStart + entry.compSize);
+    var raw = entry.method === 0 ? Promise.resolve(compData) : inflateRawBytes(compData);
+    return raw.then(function (bytesOut) { return new TextDecoder("utf-8").decode(bytesOut); });
+  }
+
+  function colLetterToIndex(letters) {
+    var n = 0;
+    for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function readCellValue(c, sharedStrings) {
+    var t = c.getAttribute("t");
+    if (t === "s") {
+      var v1 = c.getElementsByTagName("v")[0];
+      return v1 ? (sharedStrings[parseInt(v1.textContent, 10)] || "") : "";
+    }
+    if (t === "inlineStr") {
+      var is = c.getElementsByTagName("is")[0];
+      return is ? is.textContent : "";
+    }
+    var v2 = c.getElementsByTagName("v")[0];
+    if (!v2) return "";
+    var raw = v2.textContent;
+    if (t === "str" || t === "b" || raw === "") return raw;
+    var n = Number(raw);
+    if (!isNaN(n)) return Number.isInteger(n) ? n.toFixed(0) : String(n);
+    return raw;
+  }
+
+  function readRow(rowEl, width, sharedStrings) {
+    var values = new Array(width || 0).fill("");
+    var cells = rowEl.children;
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i];
+      var ref = c.getAttribute("r") || "";
+      var m = ref.match(/^[A-Z]+/);
+      if (!m) continue;
+      var idx = colLetterToIndex(m[0]);
+      while (idx >= values.length) values.push("");
+      values[idx] = readCellValue(c, sharedStrings);
+    }
+    return values;
+  }
+
+  function parseWorkbook(arrayBuffer) {
+    var bytes = new Uint8Array(arrayBuffer);
+    var entries = readZipEntries(bytes);
+    return Promise.all([
+      getEntryText(bytes, entries, "xl/workbook.xml"),
+      getEntryText(bytes, entries, "xl/_rels/workbook.xml.rels"),
+      getEntryText(bytes, entries, "xl/sharedStrings.xml")
+    ]).then(function (parts) {
+      var workbookXml = parts[0], relsXml = parts[1], sstXml = parts[2];
+      if (!workbookXml || !relsXml) throw new Error("This doesn't look like a valid .xlsx workbook.");
+      var wbDoc = new DOMParser().parseFromString(workbookXml, "application/xml");
+      var relsDoc = new DOMParser().parseFromString(relsXml, "application/xml");
+      var firstSheet = wbDoc.getElementsByTagName("sheet")[0];
+      if (!firstSheet) throw new Error("No worksheet found in the workbook.");
+      var rId = firstSheet.getAttribute("r:id");
+      var rels = relsDoc.getElementsByTagName("Relationship");
+      var target = null;
+      for (var i = 0; i < rels.length; i++) {
+        if (rels[i].getAttribute("Id") === rId) { target = rels[i].getAttribute("Target"); break; }
+      }
+      if (!target) throw new Error("Could not locate the worksheet inside the workbook.");
+      var sheetPath = target.charAt(0) === "/" ? target.slice(1) : ("xl/" + target.replace(/^\.?\//, ""));
+
+      var sharedStrings = [];
+      if (sstXml) {
+        var sstDoc = new DOMParser().parseFromString(sstXml, "application/xml");
+        var siList = sstDoc.getElementsByTagName("si");
+        for (var j = 0; j < siList.length; j++) sharedStrings.push(siList[j].textContent);
+      }
+
+      return getEntryText(bytes, entries, sheetPath).then(function (sheetXml) {
+        if (!sheetXml) throw new Error("Could not read the worksheet contents.");
+        var sheetDoc = new DOMParser().parseFromString(sheetXml, "application/xml");
+        var rowEls = sheetDoc.getElementsByTagName("row");
+        if (!rowEls.length) return { headers: [], rows: [] };
+
+        var headerValues = readRow(rowEls[0], 0, sharedStrings);
+        var headers = headerValues.map(function (h, i) { return (h && String(h).trim()) || ("Column" + (i + 1)); });
+        var rows = [];
+        for (var r = 1; r < rowEls.length; r++) {
+          var values = readRow(rowEls[r], headers.length, sharedStrings);
+          var blank = true;
+          for (var k = 0; k < values.length; k++) { if (values[k] !== "") { blank = false; break; } }
+          if (blank) continue;
+          var obj = {};
+          for (var h2 = 0; h2 < headers.length; h2++) obj[headers[h2]] = values[h2];
+          rows.push(obj);
+        }
+        return { headers: headers, rows: rows };
+      });
+    });
+  }
+
+  function normHeader(h) { return String(h).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+  function buildFieldIndex(headers, aliasMap) {
+    var normHeaders = headers.map(normHeader);
+    var fieldIndex = {};
+    Object.keys(aliasMap).forEach(function (field) {
+      var aliases = aliasMap[field];
+      for (var i = 0; i < aliases.length; i++) {
+        var idx = normHeaders.indexOf(aliases[i]);
+        if (idx !== -1) { fieldIndex[field] = headers[idx]; break; }
+      }
+    });
+    return fieldIndex;
+  }
+
+  function excelSerialToDate(v) {
+    var n = parseFloat(v);
+    if (!n || isNaN(n)) return "";
+    var ms = Math.round((n - 25569) * 86400 * 1000);
+    var d = new Date(ms);
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
+
+  var INVENTORY_ALIASES = {
+    stoneId: ["stoneid"], shape: ["shape"], weight: ["weight", "carat", "wt"],
+    color: ["color", "colour"], clarity: ["clarity"], cut: ["cut"], polish: ["polish"],
+    symmetry: ["symmetry"], fluorescence: ["fluorescence", "fluor"], lab: ["lab"],
+    reportNo: ["reportno", "reportnumber", "certificatenumber"], rate: ["rate"], amt: ["amt", "amount"],
+    rapRate: ["raprate"], rapAmt: ["rapamt"], back: ["back"], status: ["status"], location: ["location"],
+    certDate: ["certdate"], imageLink: ["imagelink"], video: ["video"], certFilename: ["certificatefilename"]
+  };
+  function buildInventoryFromRows(headers, rows) {
+    var fi = buildFieldIndex(headers, INVENTORY_ALIASES);
+    function get(row, field) { return fi[field] !== undefined ? row[fi[field]] : ""; }
+    return rows.map(function (row, i) {
+      return {
+        stoneId: get(row, "stoneId") || ("ROW" + i),
+        shape: get(row, "shape"), weight: parseFloat(get(row, "weight")) || 0,
+        color: get(row, "color"), clarity: get(row, "clarity"), cut: get(row, "cut"),
+        polish: get(row, "polish"), symmetry: get(row, "symmetry"), fluorescence: get(row, "fluorescence"),
+        lab: get(row, "lab"), reportNo: get(row, "reportNo"),
+        rate: parseFloat(get(row, "rate")) || 0, amt: parseFloat(get(row, "amt")) || 0,
+        rapRate: parseFloat(get(row, "rapRate")) || 0, rapAmt: parseFloat(get(row, "rapAmt")) || 0,
+        back: get(row, "back"), status: get(row, "status") || "Unknown", location: get(row, "location"),
+        certDate: excelSerialToDate(get(row, "certDate")), imageLink: get(row, "imageLink"),
+        video: get(row, "video"), certFilename: get(row, "certFilename")
+      };
+    });
+  }
+
+  var CLIENT_ALIASES = { entityName: ["entityname", "name", "client", "clientname"], country: ["country"], stockCategory: ["stockcategory", "category"] };
+  function buildClientsFromRows(headers, rows) {
+    var fi = buildFieldIndex(headers, CLIENT_ALIASES);
+    var out = [];
+    rows.forEach(function (row) {
+      var name = (fi.entityName !== undefined ? row[fi.entityName] : "").toString().trim();
+      if (!name) return;
+      out.push({
+        entityName: name,
+        country: fi.country !== undefined ? row[fi.country] : "",
+        stockCategory: fi.stockCategory !== undefined ? row[fi.stockCategory] : ""
+      });
+    });
+    return out;
+  }
+
+  /* ---- pricing: Rate ($/ct), Amt (flat $), or Back (% off Rapaport) ---- */
+  function primaryMatchedStone(o) { return (o.matchedStones && o.matchedStones[0]) || null; }
+  function computeEffectiveRate(o, ref) {
+    var carat = parseFloat(o.carat) || 1;
+    if (o.priceType === "per_carat") return o.price;
+    if (o.priceType === "total") return o.price / carat;
+    if (o.priceType === "back") {
+      var r = ref || primaryMatchedStone(o);
+      if (r && r.rapRate) return r.rapRate * (1 + o.price / 100);
+      return null;
+    }
+    return null;
+  }
+  function effectiveValue(o) {
+    var carat = parseFloat(o.carat) || 1;
+    if (o.priceType === "total") return o.price;
+    if (o.priceType === "per_carat") return o.price * carat;
+    var eff = computeEffectiveRate(o);
+    return eff != null ? eff * carat : 0;
+  }
+  function priceDisplay(o) {
+    if (o.priceType === "back") return (o.price >= 0 ? "+" : "") + o.price + "% off Rap";
+    return o.priceType === "per_carat" ? money(o.price) + "/ct" : money(o.price) + " flat";
+  }
+  function formatPriceByType(priceType, price) {
+    if (priceType === "back") return (price >= 0 ? "+" : "") + price + "% back";
+    if (priceType === "per_carat") return money(price) + "/ct";
+    return money(price);
+  }
+  function timeAgo(iso) {
+    var days = Math.round((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return "today";
+    if (days === 1) return "1 day ago";
+    if (days < 14) return days + " days ago";
+    return Math.round(days / 7) + " weeks ago";
+  }
+  function timeAgoShort(iso) {
+    var mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + "m ago";
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + "h ago";
+    return Math.floor(hrs / 24) + "d ago";
+  }
+  function fmtDateTime(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  function statusPill(status) { return '<span class="pill pill-' + status + '"><span class="pill-dot"></span>' + STATUS_LABELS[status] + "</span>"; }
+  function typePill(type) { return type === "sell" ? '<span class="pill pill-sell">Offering Stone</span>' : '<span class="pill pill-buy">Requirement</span>'; }
+
+  /* =========================================================================
+     SERVER DATA LOADERS
+  ========================================================================= */
+  function loadOffersFromServer() { return api("GET", "/api/offers").then(function (data) { offers = data.offers; }); }
+  function loadClientsFromServer() { return api("GET", "/api/clients").then(function (data) { clients = data.clients; }); }
+  function loadNotificationsFromServer() { return api("GET", "/api/notifications").then(function (data) { notifications = data.notifications; }); }
+  function loadInventoryFromServer() {
+    return api("GET", "/api/inventory").then(function (data) {
+      inventory = data.stones;
+      inventoryMeta = data.meta;
+      refreshInventoryUI();
+      renderInvConnStatusFromMeta();
+    });
+  }
+
+  function renderInvConnStatusFromMeta() {
+    if (!inventoryMeta) { setInvStatus('No inventory loaded yet — connect or upload AutoMail.xlsx above.'); return; }
+    setInvStatus(
+      (inventoryMeta.source === "gmail-worker" ? "Auto-refreshed" : "Connected") + " — " + inventoryMeta.fileName +
+      " · " + Number(inventoryMeta.rowCount).toLocaleString() + " stones · " + timeAgoShort(inventoryMeta.importedAt)
+    );
+  }
+
+  async function createOfferOnServer(payload) {
+    var data = await api("POST", "/api/offers", payload);
+    offers.unshift(data.offer);
+    return data.offer;
+  }
+  async function patchOfferOnServer(id, patch) {
+    var data = await api("PATCH", "/api/offers/" + id, patch);
+    var idx = offers.findIndex(function (o) { return o.id === id; });
+    if (idx !== -1) offers[idx] = data.offer;
+    return data.offer;
+  }
+  async function deleteOfferOnServer(id) {
+    await api("DELETE", "/api/offers/" + id);
+    offers = offers.filter(function (o) { return o.id !== id; });
+  }
+  async function handleConflict(err) {
+    if (err && err.status === 409) {
+      await loadOffersFromServer();
+      renderOffersTab();
+      return true;
+    }
+    return false;
+  }
+
+  /* =========================================================================
+     OFFERS PIPELINE — rendering (unchanged from the prototype)
+  ========================================================================= */
+  function renderStats() {
+    var total = offers.length;
+    var fresh = offers.filter(function (o) { return o.status === "new"; }).length;
+    var negotiating = offers.filter(function (o) { return o.status === "negotiating"; }).length;
+    var accepted = offers.filter(function (o) { return o.status === "accepted"; });
+    var openValue = offers.filter(function (o) { return o.status !== "rejected" && o.status !== "accepted"; }).reduce(function (sum, o) { return sum + effectiveValue(o); }, 0);
+    var wonValue = accepted.reduce(function (sum, o) { return sum + effectiveValue(o); }, 0);
+    var tiles = [
+      { label: "Total Offers", value: total, sub: fresh + " awaiting first review" },
+      { label: "New / Unreviewed", value: fresh, sub: "needs a first response" },
+      { label: "In Negotiation", value: negotiating, sub: "active back-and-forth" },
+      { label: "Accepted (Won)", value: accepted.length, sub: money(wonValue) + " closed value", pos: true },
+      { label: "Open Pipeline Value", value: money(openValue), sub: "across new · review · negotiating" }
+    ];
+    document.getElementById("statsRow").innerHTML = tiles.map(function (t) {
+      return '<div class="stat-tile"><div class="stat-label">' + t.label + '</div><div class="stat-value">' + t.value + '</div><div class="stat-sub' + (t.pos ? " pos" : "") + '">' + t.sub + "</div></div>";
+    }).join("");
+  }
+
+  function getFilteredOffers() {
+    var q = document.getElementById("searchInput").value.trim().toLowerCase();
+    var typeF = document.getElementById("typeFilter").value;
+    var sort = document.getElementById("sortOrder").value;
+    var list = offers.filter(function (o) {
+      if (typeF !== "all" && o.type !== typeF) return false;
+      if (q) {
+        var client = clientById(o.clientId);
+        var hay = ((client ? client.entityName : "") + " " + o.shape + " " + o.notes + " " + o.cert).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+    list.sort(function (a, b) {
+      if (sort === "newest") return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sort === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sort === "priority") return (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
+      if (sort === "value") return effectiveValue(b) - effectiveValue(a);
+      return 0;
+    });
+    return list;
+  }
+
+  function cardHtml(o) {
+    var client = clientById(o.clientId);
+    var name = client ? client.entityName : "(unknown client)";
+    return '<div class="pipeline-card" draggable="true" data-id="' + o.id + '">' +
+      (o.unread ? '<span class="card-unread-dot" title="Unread activity"></span>' : "") +
+      '<div class="pipeline-card-top"><span class="pipeline-card-client">' + esc(name) + '</span>' + (o.priority ? '<span class="pill pill-priority">High</span>' : "") + "</div>" +
+      '<div class="pipeline-card-spec">' + esc(o.shape) + " · " + esc(o.carat) + "ct · " + esc(o.color) + "/" + esc(o.clarity) + "</div>" +
+      '<div class="pipeline-card-bottom">' + typePill(o.type) + '<span class="offer-price">' + priceDisplay(o) + "</span></div>" +
+    "</div>";
+  }
+
+  function renderPipelineBoard() {
+    var list = getFilteredOffers();
+    var statusF = document.getElementById("statusFilter").value;
+    var visibleStatuses = statusF === "all" ? STATUS_ORDER : [statusF];
+    var board = document.getElementById("pipelineBoard");
+    if (!offers.length) {
+      board.innerHTML = '<div class="panel" style="flex:1;"><div class="empty-state">No offers yet — click "+ New Offer" to log the first one.</div></div>';
+      return;
+    }
+    board.innerHTML = visibleStatuses.map(function (status) {
+      var colItems = list.filter(function (o) { return o.status === status; });
+      var colValue = colItems.reduce(function (sum, o) { return sum + effectiveValue(o); }, 0);
+      return '<div class="pipeline-col">' +
+        '<div class="pipeline-col-header"><span>' + STATUS_LABELS[status] + '</span><span class="pipeline-col-count">' + colItems.length + "</span></div>" +
+        '<div class="pipeline-col-value">' + money(colValue) + " total</div>" +
+        '<div class="pipeline-col-body" data-status="' + status + '">' +
+          (colItems.length ? colItems.map(cardHtml).join("") : '<div class="empty-state" style="padding:20px 8px;">No offers here</div>') +
+        "</div></div>";
+    }).join("");
+  }
+
+  function matchPanelHtml(o) {
+    var matched = o.matchedStones || [];
+    var query = matchQueries[o.id] !== undefined ? matchQueries[o.id] : (o.shape || "");
+    return '<div class="thread-block">' +
+      '<div class="thread-title">Related Inventory Stones</div>' +
+      (matched.length ? '<div class="chip-row">' + matched.map(function (m) { return matchChipHtml(o.id, m); }).join("") + "</div>"
+        : '<div style="color:var(--ink-muted);font-size:12.5px;margin-bottom:10px;">No stones linked yet — search our AutoMail inventory below.</div>') +
+      '<input type="search" class="match-search-input" data-id="' + o.id + '" placeholder="Search AutoMail inventory (shape, carat, color, clarity, lab)…" value="' + esc(query) + '">' +
+      '<div class="match-results" id="matchResults-' + o.id + '"></div>' +
+    "</div>";
+  }
+  function matchChipHtml(offerId, m) {
+    return '<span class="chip">' + esc(m.shape) + " " + m.weight + "ct " + esc(m.color) + "/" + esc(m.clarity) + " · " + money(m.rate) + "/ct" +
+      (m.imageLink ? ' <a href="' + esc(m.imageLink) + '" target="_blank" rel="noopener noreferrer" class="chip-link" title="Open stone image">🖼</a>' : "") +
+      '<button type="button" class="chip-remove" data-action="unmatch" data-offer="' + offerId + '" data-stone="' + esc(m.stoneId) + '" title="Remove">×</button></span>';
+  }
+  function renderMatchResults(offerId, query) {
+    var el = document.getElementById("matchResults-" + offerId);
+    if (!el) return;
+    var q = (query || "").trim().toLowerCase();
+    var results = inventory;
+    if (q) results = inventory.filter(function (s) { return (s.shape + " " + s.color + " " + s.clarity + " " + s.lab + " " + s.stoneId).toLowerCase().indexOf(q) !== -1; });
+    results = results.slice(0, 20);
+    if (!results.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;">' + (inventory.length ? "No matching stones in inventory." : "Connect the AutoMail inventory (Inventory tab) to search our stock.") + "</div>"; return; }
+    el.innerHTML = results.map(function (s) {
+      return '<div class="match-row"><span>' + esc(s.shape) + " · " + s.weight + "ct · " + esc(s.color) + "/" + esc(s.clarity) + " · " + esc(s.lab) + '</span><span>' + money(s.rate) + '/ct</span>' +
+        '<button type="button" class="btn btn-sm" data-action="attach" data-offer="' + offerId + '" data-stone="' + esc(s.stoneId) + '">Attach</button></div>';
+    }).join("");
+  }
+  function toChipShape(stone) { return { stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity, rate: stone.rate, rapRate: stone.rapRate, amt: stone.amt, lab: stone.lab, imageLink: stone.imageLink }; }
+
+  async function attachStone(offerId, stoneId) {
+    var offer = offers.find(function (o) { return o.id === offerId; });
+    var stone = inventory.find(function (s) { return s.stoneId === stoneId; });
+    if (!offer || !stone) return;
+    try {
+      await patchOfferOnServer(offerId, { version: offer.version, matchedStonesAdd: toChipShape(stone) });
+      renderDetail(); renderPipelineBoard();
+    } catch (err) { if (!(await handleConflict(err))) alert("Could not attach stone: " + err.message); else renderDetail(); }
+  }
+  async function unattachStone(offerId, stoneId) {
+    var offer = offers.find(function (o) { return o.id === offerId; });
+    if (!offer) return;
+    try {
+      await patchOfferOnServer(offerId, { version: offer.version, matchedStonesRemove: stoneId });
+      renderDetail(); renderPipelineBoard();
+    } catch (err) { if (!(await handleConflict(err))) alert("Could not remove stone: " + err.message); else renderDetail(); }
+  }
+
+  function renderDetail() {
+    var panel = document.getElementById("detailPanel");
+    var o = offers.find(function (x) { return x.id === selectedId; });
+    if (!o) {
+      panel.innerHTML = '<div class="detail-empty"><svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 16 L24 4 L39 16 L24 44 Z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg><div>Select an offer to view details and negotiate.</div></div>';
+      return;
+    }
+    var client = clientById(o.clientId) || { entityName: "(unknown client)", country: "", stockCategory: "" };
+    var ref = primaryMatchedStone(o);
+
+    var stepper = STATUS_ORDER.map(function (s) {
+      var idx = STATUS_ORDER.indexOf(s), curIdx = STATUS_ORDER.indexOf(o.status);
+      var cls = "step-btn" + (s === o.status ? " is-current" : "") + (idx < curIdx ? " done" : "");
+      return '<button type="button" class="' + cls + '" data-step="' + s + '" data-action="status" data-id="' + o.id + '">' + STATUS_LABELS[s] + "</button>";
+    }).join("");
+
+    var specs = [["Shape", o.shape], ["Carat", o.carat + " ct"], ["Color", o.color], ["Clarity", o.clarity || "—"], ["Cut", o.cut || "—"], ["Channel", o.channel]]
+      .map(function (p) { return '<div class="spec-item"><div class="spec-label">' + p[0] + '</div><div class="spec-value">' + esc(p[1]) + "</div></div>"; })
+      .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
+
+    var thread = (o.thread || []).map(function (m) {
+      return '<div class="msg msg-' + m.author + '"><div class="msg-meta"><span>' + (m.author === "company" ? "Company" : "Client") + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
+        "<div>" + esc(m.message) + "</div>" +
+        (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
+    }).join("");
+
+    var effRate = computeEffectiveRate(o, ref);
+    var compareHtml = "";
+    if (ref) {
+      var diffPct = (effRate != null && ref.rate) ? ((effRate - ref.rate) / ref.rate * 100) : null;
+      var favorable = diffPct == null ? null : (o.type === "sell" ? diffPct < 0 : diffPct > 0);
+      compareHtml = '<div class="compare-block">' +
+        '<div class="compare-row"><span>Our rate (' + esc(ref.stoneId) + ")</span><span>" + money(ref.rate) + "/ct</span></div>" +
+        (ref.rapRate ? '<div class="compare-row"><span>Our Rap rate</span><span>' + money(ref.rapRate) + "/ct</span></div>" : "") +
+        (effRate != null ? '<div class="compare-row"><span>Client price (equivalent)</span><span>' + money(effRate) + "/ct</span></div>" : "") +
+        (diffPct != null ? '<div class="compare-row ' + (favorable ? "good" : "bad") + '"><span>Vs our rate</span><span>' + (diffPct >= 0 ? "+" : "") + diffPct.toFixed(1) + "%</span></div>" : "") +
+      "</div>";
+    }
+
+    var pricePlaceholder = o.priceType === "back" ? "Counter Back % (e.g. -38)" : (o.priceType === "per_carat" ? "Counter price ($/ct)" : "Counter price ($ total)");
+
+    panel.innerHTML =
+      '<div class="detail-scroll">' +
+        '<div class="detail-header"><div class="detail-header-top"><div><h2>' + esc(client.entityName) + "</h2><div class=\"detail-sub\">" +
+          (client.country ? esc(client.country) + " · " : "") + (client.stockCategory ? esc(client.stockCategory) + " · " : "") +
+          (o.contact ? esc(o.contact) + " · " : "") + "via " + esc(o.channel) + "</div></div></div>" +
+          '<div class="detail-badges">' + typePill(o.type) + statusPill(o.status) + (o.priority ? '<span class="pill pill-priority">High priority</span>' : "") + "</div></div>" +
+        '<div class="stepper">' + stepper + "</div>" +
+        '<div class="spec-grid">' + specs + "</div>" +
+        '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' + (o.type === "sell" ? "Asking Price" : "Client Budget") + '</div><div class="price-main">' + priceDisplay(o) + "</div></div><div class=\"price-note\">" +
+          (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + "</div>" +
+        (o.notes ? '<div class="notes-block"><div class="spec-label">Notes</div>' + esc(o.notes) + "</div>" : "") +
+        '<div class="thread-block"><div class="thread-title">Negotiation Thread</div><div class="thread">' + thread + "</div>" +
+          '<form class="msg-form" data-id="' + o.id + '">' +
+            '<div class="msg-form-row"><textarea placeholder="Log a message, counter-offer, or update…" required></textarea></div>' +
+            '<div class="msg-form-controls"><div class="seg" data-role="author"><button type="button" class="on" data-value="company">Company</button><button type="button" data-value="client">Client (relayed)</button></div>' +
+              '<input type="number" step="0.01" class="price-input" placeholder="' + pricePlaceholder + '"><button type="submit" class="btn btn-primary btn-sm">Post</button></div>' +
+          "</form></div>" +
+        matchPanelHtml(o) +
+      "</div>";
+
+    renderMatchResults(o.id, matchQueries[o.id] !== undefined ? matchQueries[o.id] : (o.shape || ""));
+  }
+
+  function renderOffersTab() { renderStats(); renderPipelineBoard(); renderDetail(); }
+
+  /* ---- celebration ---- */
+  function celebrateDealClosed(offer) {
+    var overlay = document.getElementById("celebrateOverlay");
+    overlay.innerHTML = "";
+    var client = clientById(offer.clientId);
+    var msg = document.createElement("div");
+    msg.className = "celebrate-msg";
+    msg.textContent = "🎉 Deal Closed — " + (client ? client.entityName : "Client") + "!";
+    overlay.appendChild(msg);
+    var colors = ["#FFC947", "#FF6B6B", "#4ECDC4", "#556FB5", "#C86DD7", "#6BCB77"];
+    for (var i = 0; i < 90; i++) {
+      var piece = document.createElement("div");
+      piece.className = "confetti-piece";
+      piece.style.left = (Math.random() * 100) + "vw";
+      piece.style.background = colors[i % colors.length];
+      piece.style.animationDuration = (2 + Math.random() * 1.2) + "s";
+      piece.style.animationDelay = (Math.random() * 0.4) + "s";
+      if (Math.random() > 0.5) piece.style.borderRadius = "50%";
+      overlay.appendChild(piece);
+    }
+    overlay.classList.add("show");
+    window.setTimeout(function () { overlay.classList.remove("show"); overlay.innerHTML = ""; }, 3000);
+  }
+
+  async function setOfferStatus(offer, newStatus) {
+    if (offer.status === newStatus) return;
+    var wasAccepted = offer.status === "accepted";
+    try {
+      var updated = await patchOfferOnServer(offer.id, { version: offer.version, status: newStatus });
+      renderOffersTab();
+      if (newStatus === "accepted" && !wasAccepted) celebrateDealClosed(updated);
+    } catch (err) {
+      if (!(await handleConflict(err))) alert("Could not update status: " + err.message);
+    }
+  }
+
+  /* =========================================================================
+     INVENTORY TAB
+  ========================================================================= */
+  function setInvStatus(text) { document.getElementById("invConnStatus").textContent = text; }
+
+  function populateInventoryFilterOptions() {
+    var shapeSel = document.getElementById("invShapeFilter");
+    var statusSel = document.getElementById("invStatusFilter");
+    var shapes = Array.from(new Set(inventory.map(function (s) { return s.shape; }).filter(Boolean))).sort();
+    var statuses = Array.from(new Set(inventory.map(function (s) { return s.status; }).filter(Boolean))).sort();
+    shapeSel.innerHTML = '<option value="all">All shapes</option>' + shapes.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + "</option>"; }).join("");
+    statusSel.innerHTML = '<option value="all">All statuses</option>' + statuses.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + "</option>"; }).join("");
+  }
+  function populateShapeDatalist() {
+    var dl = document.getElementById("shapeOptions");
+    var existing = Array.from(dl.querySelectorAll("option")).map(function (o) { return o.value; });
+    Array.from(new Set(inventory.map(function (s) { return s.shape; }).filter(Boolean))).forEach(function (s) {
+      if (existing.indexOf(s) === -1) { var opt = document.createElement("option"); opt.value = s; dl.appendChild(opt); existing.push(s); }
+    });
+  }
+
+  function getFilteredInventory() {
+    var q = document.getElementById("invSearch").value.trim().toLowerCase();
+    var shapeF = document.getElementById("invShapeFilter").value;
+    var statusF = document.getElementById("invStatusFilter").value;
+    var sort = document.getElementById("invSort").value;
+    var list = inventory.filter(function (s) {
+      if (shapeF !== "all" && s.shape !== shapeF) return false;
+      if (statusF !== "all" && s.status !== statusF) return false;
+      if (q) { var hay = (s.stoneId + " " + s.shape + " " + s.color + " " + s.clarity + " " + s.lab + " " + s.location).toLowerCase(); if (hay.indexOf(q) === -1) return false; }
+      return true;
+    });
+    if (sort === "carat_desc") list = list.slice().sort(function (a, b) { return b.weight - a.weight; });
+    else if (sort === "carat_asc") list = list.slice().sort(function (a, b) { return a.weight - b.weight; });
+    else if (sort === "rate_desc") list = list.slice().sort(function (a, b) { return b.rate - a.rate; });
+    else if (sort === "rate_asc") list = list.slice().sort(function (a, b) { return a.rate - b.rate; });
+    return list;
+  }
+
+  function invRowHtml(s) {
+    return '<tr data-stone="' + esc(s.stoneId) + '">' +
+      '<td class="mono">' + esc(s.stoneId) + "</td><td>" + esc(s.shape) + '</td><td class="num">' + s.weight.toFixed(2) + "</td>" +
+      "<td>" + esc(s.color) + "</td><td>" + esc(s.clarity) + "</td><td>" + esc(s.cut) + "</td><td>" + esc(s.polish) + "</td>" +
+      "<td>" + esc(s.symmetry) + "</td><td>" + esc(s.fluorescence) + "</td><td>" + esc(s.lab) + '</td><td class="mono">' + esc(s.reportNo) + "</td>" +
+      '<td class="num">' + esc(s.back) + '</td><td class="num">' + money(s.rate) + '</td><td class="num">' + money(s.amt) + "</td><td>" + esc(s.status) + "</td>" +
+    "</tr>";
+  }
+
+  function renderInventoryTable() {
+    var list = getFilteredInventory();
+    var totalPages = Math.max(1, Math.ceil(list.length / INV_PAGE_SIZE));
+    currentInvPage = Math.min(currentInvPage, totalPages - 1);
+    var pageItems = list.slice(currentInvPage * INV_PAGE_SIZE, currentInvPage * INV_PAGE_SIZE + INV_PAGE_SIZE);
+    var tbody = document.querySelector("#invTable tbody");
+    tbody.innerHTML = pageItems.length ? pageItems.map(invRowHtml).join("") :
+      '<tr><td colspan="15" class="empty-state">' + (inventory.length ? "No stones match these filters." : "No inventory loaded yet — connect or upload AutoMail.xlsx above.") + "</td></tr>";
+    document.getElementById("invPager").innerHTML =
+      "<span>" + list.length.toLocaleString() + " stones" + (list.length !== inventory.length ? " (of " + inventory.length.toLocaleString() + ")" : "") + "</span>" +
+      '<span class="pager-controls"><button type="button" class="btn btn-sm" id="invPrev"' + (currentInvPage === 0 ? " disabled" : "") + ">Prev</button>" +
+      "<span>Page " + (currentInvPage + 1) + " of " + totalPages + "</span>" +
+      '<button type="button" class="btn btn-sm" id="invNext"' + (currentInvPage >= totalPages - 1 ? " disabled" : "") + ">Next</button></span>";
+  }
+
+  async function openStoneModal(stoneId) {
+    var s = inventory.find(function (x) { return x.stoneId === stoneId; });
+    if (!s) return;
+    document.getElementById("stoneModalTitle").textContent = s.stoneId + " — " + s.shape + " " + s.weight + "ct";
+    document.getElementById("stoneModalBody").innerHTML = '<div class="empty-state">Loading full details…</div>';
+    document.getElementById("stoneModalOverlay").classList.add("open");
+    try {
+      var data = await api("GET", "/api/inventory/" + encodeURIComponent(stoneId));
+      var raw = data.raw || {};
+      var keys = Object.keys(raw);
+      document.getElementById("stoneModalBody").innerHTML = keys.length
+        ? keys.map(function (k) { return '<div class="kv-row"><span class="kv-key">' + esc(k) + '</span><span class="kv-val">' + linkify(raw[k]) + "</span></div>"; }).join("")
+        : '<div class="empty-state">Full field detail is only available for stones loaded via the automated Gmail ingestion — this one came from a manual upload, which only carries the curated fields shown in the table.</div>';
+    } catch (err) {
+      document.getElementById("stoneModalBody").innerHTML = '<div class="empty-state">Could not load details: ' + esc(err.message) + "</div>";
+    }
+  }
+
+  function refreshInventoryUI() { populateInventoryFilterOptions(); populateShapeDatalist(); currentInvPage = 0; renderInventoryTable(); }
+
+  async function uploadInventoryToServer(fileName, stones) {
+    await api("POST", "/api/inventory/import/start");
+    var CHUNK = 1200;
+    for (var i = 0; i < stones.length; i += CHUNK) {
+      setInvStatus("Uploading " + Math.min(i + CHUNK, stones.length).toLocaleString() + " / " + stones.length.toLocaleString() + " stones…");
+      await api("POST", "/api/inventory/import/append", { stones: stones.slice(i, i + CHUNK) });
+    }
+    await api("POST", "/api/inventory/import/commit", { fileName: fileName, rowCount: stones.length });
+  }
+
+  function loadInventoryFromFile(file) {
+    setInvStatus("Parsing " + file.name + " (" + (Math.round(file.size / 1024 / 1024 * 10) / 10) + " MB)…");
+    return file.arrayBuffer().then(function (buf) { return parseWorkbook(buf); }).then(function (result) {
+      var stones = buildInventoryFromRows(result.headers, result.rows);
+      return uploadInventoryToServer(file.name, stones);
+    }).then(function () {
+      return loadInventoryFromServer();
+    }).then(function () {
+      document.getElementById("connectAutoMailBtn").hidden = !!automailHandle;
+      document.getElementById("refreshAutoMailBtn").hidden = !automailHandle;
+    }).catch(function (e) { setInvStatus("Failed: " + e.message); });
+  }
+  function loadInventoryFromHandle(handle) { setInvStatus("Reading " + handle.name + "…"); return handle.getFile().then(loadInventoryFromFile); }
+
+  function connectAutoMailFile() {
+    if (!window.showOpenFilePicker) { setInvStatus("This browser doesn't support direct file access — use 'Upload manually' instead."); return; }
+    window.showOpenFilePicker({ types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }] })
+      .then(function (handles) {
+        var handle = handles[0];
+        return idbSet("automailHandle", handle).then(function () {
+          automailHandle = handle;
+          return handle.requestPermission({ mode: "read" });
+        }).then(function (perm) {
+          if (perm === "granted") return loadInventoryFromHandle(handle);
+          setInvStatus("Permission not granted for " + handle.name + ".");
+        });
+      }).catch(function (e) { if (e.name !== "AbortError") setInvStatus("Could not connect file: " + e.message); });
+  }
+  function refreshAutoMail() {
+    if (!automailHandle) return connectAutoMailFile();
+    automailHandle.requestPermission({ mode: "read" }).then(function (perm) {
+      if (perm === "granted") return loadInventoryFromHandle(automailHandle);
+      setInvStatus("Permission denied for " + automailHandle.name + ".");
+    }).catch(function (e) { setInvStatus("Refresh failed: " + e.message); });
+  }
+  function initInventoryConnection() {
+    if (!window.showOpenFilePicker) { document.getElementById("connectAutoMailBtn").title = "Direct file access isn't available in this browser — use 'Upload manually'."; return; }
+    idbGet("automailHandle").then(function (handle) {
+      if (!handle) return;
+      automailHandle = handle;
+      return handle.queryPermission({ mode: "read" }).then(function (perm) {
+        document.getElementById("refreshAutoMailBtn").hidden = perm !== "granted" && perm !== "prompt";
+        document.getElementById("connectAutoMailBtn").hidden = perm === "granted" || perm === "prompt";
+      });
+    }).catch(function () {});
+  }
+
+  /* =========================================================================
+     CLIENTS TAB
+  ========================================================================= */
+  function setClientImportStatus(text) { document.getElementById("clientImportStatus").textContent = text; }
+  function populateClientDatalist() { document.getElementById("clientOptions").innerHTML = clients.map(function (c) { return '<option value="' + esc(c.entityName) + '">'; }).join(""); }
+  function populateClientCountryFilter() {
+    var sel = document.getElementById("clientCountryFilter");
+    var countries = Array.from(new Set(clients.map(function (c) { return c.country; }).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="all">All countries</option>' + countries.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("");
+  }
+  function getFilteredClients() {
+    var q = document.getElementById("clientSearch").value.trim().toLowerCase();
+    var countryF = document.getElementById("clientCountryFilter").value;
+    return clients.filter(function (c) {
+      if (countryF !== "all" && c.country !== countryF) return false;
+      if (q && (c.entityName + " " + c.country + " " + c.stockCategory).toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    }).sort(function (a, b) { return a.entityName.localeCompare(b.entityName); });
+  }
+  function renderClients() {
+    var list = getFilteredClients();
+    var tbody = document.querySelector("#clientTable tbody");
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">' + (clients.length ? "No clients match this search." : "No clients yet — import the client list or add one manually.") + "</td></tr>"; return; }
+    tbody.innerHTML = list.map(function (c) {
+      var offerCount = offers.filter(function (o) { return o.clientId === c.id; }).length;
+      return "<tr><td>" + esc(c.entityName) + "</td><td>" + esc(c.country || "—") + "</td><td>" + esc(c.stockCategory || "—") + '</td><td class="num">' + offerCount + "</td><td>" +
+        (c.source === "import" ? '<span class="pill pill-new">Imported</span>' : '<span class="pill pill-accepted">Manual</span>') + "</td>" +
+        '<td><button type="button" class="btn btn-sm btn-ghost" data-action="edit-client" data-id="' + c.id + '">Edit</button> <button type="button" class="btn btn-sm btn-ghost" data-action="delete-client" data-id="' + c.id + '">Delete</button></td></tr>';
+    }).join("");
+  }
+
+  /* =========================================================================
+     TABS
+  ========================================================================= */
+  function switchToTab(tab) {
+    document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-tab") === tab); });
+    document.querySelectorAll(".tab-panel").forEach(function (p) { p.hidden = p.id !== "tab-" + tab; });
+  }
+  document.querySelectorAll(".tab-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var tab = btn.getAttribute("data-tab");
+      switchToTab(tab);
+      if (tab === "inventory") renderInventoryTable();
+      if (tab === "clients") { populateClientCountryFilter(); renderClients(); }
+    });
+  });
+
+  /* =========================================================================
+     EVENTS — Offers pipeline
+  ========================================================================= */
+  ["searchInput", "typeFilter", "statusFilter", "sortOrder"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", renderPipelineBoard);
+    document.getElementById(id).addEventListener("change", renderPipelineBoard);
+  });
+
+  async function openDetailDrawer(id) {
+    selectedId = id;
+    var offer = offers.find(function (o) { return o.id === id; });
+    if (offer && offer.unread) {
+      try { await patchOfferOnServer(id, { version: offer.version, markRead: true }); renderPipelineBoard(); } catch (e) { /* non-critical */ }
+    }
+    renderDetail();
+    document.getElementById("drawerOverlay").classList.add("open");
+  }
+  function closeDetailDrawer() { document.getElementById("drawerOverlay").classList.remove("open"); }
+  document.getElementById("drawerCloseBtn").addEventListener("click", closeDetailDrawer);
+  document.getElementById("drawerOverlay").addEventListener("click", function (e) { if (e.target.id === "drawerOverlay") closeDetailDrawer(); });
+
+  var pipelineBoardEl = document.getElementById("pipelineBoard");
+  var draggingId = null;
+  pipelineBoardEl.addEventListener("dragstart", function (e) {
+    var card = e.target.closest(".pipeline-card");
+    if (!card) return;
+    draggingId = card.getAttribute("data-id");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", draggingId);
+  });
+  pipelineBoardEl.addEventListener("dragover", function (e) { var col = e.target.closest(".pipeline-col-body"); if (col) { e.preventDefault(); col.classList.add("drag-over"); } });
+  pipelineBoardEl.addEventListener("dragleave", function (e) { var col = e.target.closest(".pipeline-col-body"); if (col) col.classList.remove("drag-over"); });
+  pipelineBoardEl.addEventListener("drop", function (e) {
+    var col = e.target.closest(".pipeline-col-body");
+    if (!col) return;
+    e.preventDefault();
+    col.classList.remove("drag-over");
+    var id = e.dataTransfer.getData("text/plain") || draggingId;
+    var newStatus = col.getAttribute("data-status");
+    var offer = offers.find(function (o) { return o.id === id; });
+    if (offer) setOfferStatus(offer, newStatus);
+    draggingId = null;
+  });
+  pipelineBoardEl.addEventListener("click", function (e) { var card = e.target.closest(".pipeline-card"); if (card) openDetailDrawer(card.getAttribute("data-id")); });
+
+  var detailPanelEl = document.getElementById("detailPanel");
+  detailPanelEl.addEventListener("click", function (e) {
+    var stepBtn = e.target.closest("[data-action='status']");
+    if (stepBtn) {
+      var offer = offers.find(function (o) { return o.id === stepBtn.getAttribute("data-id"); });
+      if (offer) setOfferStatus(offer, stepBtn.getAttribute("data-step"));
+      return;
+    }
+    var segBtn = e.target.closest(".seg button");
+    if (segBtn) { var seg = segBtn.closest(".seg"); seg.querySelectorAll("button").forEach(function (b) { b.classList.remove("on"); }); segBtn.classList.add("on"); return; }
+    var attachBtn = e.target.closest("[data-action='attach']");
+    if (attachBtn) { attachStone(attachBtn.getAttribute("data-offer"), attachBtn.getAttribute("data-stone")); return; }
+    var unmatchBtn = e.target.closest("[data-action='unmatch']");
+    if (unmatchBtn) { unattachStone(unmatchBtn.getAttribute("data-offer"), unmatchBtn.getAttribute("data-stone")); return; }
+  });
+  detailPanelEl.addEventListener("input", function (e) {
+    var input = e.target.closest(".match-search-input");
+    if (!input) return;
+    var offerId = input.getAttribute("data-id");
+    matchQueries[offerId] = input.value;
+    renderMatchResults(offerId, input.value);
+  });
+  detailPanelEl.addEventListener("submit", async function (e) {
+    var form = e.target.closest(".msg-form");
+    if (!form) return;
+    e.preventDefault();
+    var offer = offers.find(function (o) { return o.id === form.getAttribute("data-id"); });
+    if (!offer) return;
+    var textarea = form.querySelector("textarea");
+    var priceInput = form.querySelector(".price-input");
+    var authorBtn = form.querySelector(".seg button.on");
+    var message = textarea.value.trim();
+    if (!message) return;
+    var entry = { author: authorBtn ? authorBtn.getAttribute("data-value") : "company", message: message, ts: new Date().toISOString() };
+    if (priceInput.value !== "") entry.price = Number(priceInput.value);
+    try {
+      await patchOfferOnServer(offer.id, { version: offer.version, appendMessage: entry });
+      renderOffersTab();
+    } catch (err) {
+      if (!(await handleConflict(err))) alert("Could not post message: " + err.message);
+    }
+  });
+
+  /* =========================================================================
+     EVENTS — Inventory
+  ========================================================================= */
+  ["invSearch", "invShapeFilter", "invStatusFilter", "invSort"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", function () { currentInvPage = 0; renderInventoryTable(); });
+    document.getElementById(id).addEventListener("change", function () { currentInvPage = 0; renderInventoryTable(); });
+  });
+  document.getElementById("invPager").addEventListener("click", function (e) {
+    if (e.target.id === "invPrev") { currentInvPage--; renderInventoryTable(); }
+    if (e.target.id === "invNext") { currentInvPage++; renderInventoryTable(); }
+  });
+  document.getElementById("invTable").addEventListener("click", function (e) { var tr = e.target.closest("tr[data-stone]"); if (tr) openStoneModal(tr.getAttribute("data-stone")); });
+  document.getElementById("connectAutoMailBtn").addEventListener("click", connectAutoMailFile);
+  document.getElementById("refreshAutoMailBtn").addEventListener("click", refreshAutoMail);
+  document.getElementById("manualInventoryUpload").addEventListener("change", function (e) { var file = e.target.files[0]; if (file) loadInventoryFromFile(file); e.target.value = ""; });
+  document.getElementById("stoneModalClose").addEventListener("click", function () { document.getElementById("stoneModalOverlay").classList.remove("open"); });
+  document.getElementById("stoneModalOverlay").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("open"); });
+
+  /* =========================================================================
+     EVENTS — Clients
+  ========================================================================= */
+  ["clientSearch", "clientCountryFilter"].forEach(function (id) { document.getElementById(id).addEventListener("input", renderClients); document.getElementById(id).addEventListener("change", renderClients); });
+  document.getElementById("clientImportUpload").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    setClientImportStatus("Parsing " + file.name + "…");
+    file.arrayBuffer().then(function (buf) { return parseWorkbook(buf); }).then(function (result) {
+      var parsed = buildClientsFromRows(result.headers, result.rows);
+      setClientImportStatus("Uploading " + parsed.length + " rows…");
+      return api("POST", "/api/clients/import", { rows: parsed });
+    }).then(function (res) {
+      return loadClientsFromServer().then(function () {
+        setClientImportStatus("Imported " + file.name + " — " + res.added + " added, " + res.updated + " updated. " + res.total + " total clients.");
+        populateClientCountryFilter(); renderClients(); populateClientDatalist();
+      });
+    }).catch(function (err) { setClientImportStatus("Import failed: " + err.message); });
+    e.target.value = "";
+  });
+
+  var clientModalOverlay = document.getElementById("clientModalOverlay");
+  document.getElementById("addClientBtn").addEventListener("click", function () {
+    editingClientId = null;
+    document.getElementById("clientModalTitle").textContent = "Add a new client";
+    document.getElementById("clientModalSave").textContent = "Add client";
+    document.getElementById("clientForm").reset();
+    clientModalOverlay.classList.add("open");
+    document.getElementById("cf-name").focus();
+  });
+  function closeClientModal() { clientModalOverlay.classList.remove("open"); document.getElementById("clientForm").reset(); editingClientId = null; }
+  document.getElementById("clientModalClose").addEventListener("click", closeClientModal);
+  document.getElementById("clientModalCancel").addEventListener("click", closeClientModal);
+  clientModalOverlay.addEventListener("click", function (e) { if (e.target === clientModalOverlay) closeClientModal(); });
+  document.getElementById("clientForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = document.getElementById("cf-name").value.trim();
+    var country = document.getElementById("cf-country").value.trim();
+    var category = document.getElementById("cf-category").value.trim();
+    try {
+      if (editingClientId) {
+        await api("PATCH", "/api/clients/" + editingClientId, { entityName: name, country: country, stockCategory: category });
+      } else {
+        await api("POST", "/api/clients", { entityName: name, country: country, stockCategory: category });
+      }
+      await loadClientsFromServer();
+      populateClientCountryFilter(); renderClients(); populateClientDatalist();
+      closeClientModal();
+    } catch (err) { alert("Could not save client: " + err.message); }
+  });
+  document.getElementById("clientTable").addEventListener("click", async function (e) {
+    var editBtn = e.target.closest("[data-action='edit-client']");
+    if (editBtn) {
+      var c = clientById(editBtn.getAttribute("data-id"));
+      if (!c) return;
+      editingClientId = c.id;
+      document.getElementById("clientModalTitle").textContent = "Edit client";
+      document.getElementById("clientModalSave").textContent = "Save changes";
+      document.getElementById("cf-name").value = c.entityName;
+      document.getElementById("cf-country").value = c.country;
+      document.getElementById("cf-category").value = c.stockCategory;
+      clientModalOverlay.classList.add("open");
+      return;
+    }
+    var delBtn = e.target.closest("[data-action='delete-client']");
+    if (delBtn) {
+      var id = delBtn.getAttribute("data-id");
+      var client = clientById(id);
+      if (!client) return;
+      var offerCount = offers.filter(function (o) { return o.clientId === id; }).length;
+      var msg = 'Delete "' + client.entityName + '"?' + (offerCount ? " " + offerCount + " existing offer(s) reference this client and will show as unknown client." : "");
+      if (!window.confirm(msg)) return;
+      try {
+        await api("DELETE", "/api/clients/" + id);
+        await Promise.all([loadClientsFromServer(), loadOffersFromServer()]);
+        populateClientCountryFilter(); renderClients(); populateClientDatalist(); renderOffersTab();
+      } catch (err) { alert("Could not delete client: " + err.message); }
+    }
+  });
+
+  /* =========================================================================
+     EVENTS — New Offer modal (incl. inventory stone lookup)
+  ========================================================================= */
+  var overlay = document.getElementById("modalOverlay");
+  var priceTypeLabelEl = document.getElementById("f-price-label");
+  function syncPriceLabel() {
+    var isSell = document.querySelector("input[name='offerType']:checked").value === "sell";
+    var priceType = document.getElementById("f-priceType").value;
+    priceTypeLabelEl.textContent = priceType === "back" ? "Back % off Rapaport (e.g. -38)" : (isSell ? "Asking price (USD)" : "Budget (USD)");
+  }
+  document.querySelectorAll("input[name='offerType']").forEach(function (r) { r.addEventListener("change", syncPriceLabel); });
+  document.getElementById("f-priceType").addEventListener("change", syncPriceLabel);
+
+  document.getElementById("f-stoneLookup").addEventListener("input", function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    var el = document.getElementById("f-stoneLookupResults");
+    linkedStoneForNewOffer = null;
+    if (!q) { el.innerHTML = ""; return; }
+    var results = inventory.filter(function (s) { return s.stoneId.toLowerCase().indexOf(q) !== -1 || String(s.reportNo).toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+    if (!results.length) { el.innerHTML = '<div class="lookup-status muted">' + (inventory.length ? "No match found." : "Connect AutoMail inventory first (Inventory tab).") + "</div>"; return; }
+    el.innerHTML = results.map(function (s) {
+      return '<div class="match-row"><span>' + esc(s.stoneId) + " · " + esc(s.shape) + " " + s.weight + "ct " + esc(s.color) + "/" + esc(s.clarity) + " · " + esc(s.lab) + '</span>' +
+        '<button type="button" class="btn btn-sm" data-lookup-stone="' + esc(s.stoneId) + '">Use this</button></div>';
+    }).join("");
+  });
+  document.getElementById("f-stoneLookupResults").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-lookup-stone]");
+    if (!btn) return;
+    var stone = inventory.find(function (s) { return s.stoneId === btn.getAttribute("data-lookup-stone"); });
+    if (!stone) return;
+    linkedStoneForNewOffer = stone;
+    document.getElementById("f-stoneLookup").value = stone.stoneId;
+    document.getElementById("f-stoneLookupResults").innerHTML = '<div class="lookup-status ok">Linked ✓ ' + esc(stone.stoneId) + " — fields below filled in, still editable.</div>";
+    document.getElementById("f-shape").value = stone.shape;
+    document.getElementById("f-carat").value = stone.weight;
+    document.getElementById("f-color").value = stone.color;
+    document.getElementById("f-clarity").value = stone.clarity;
+    document.getElementById("f-cut").value = stone.cut;
+    document.getElementById("f-cert").value = (stone.lab || "") + (stone.reportNo ? " " + stone.reportNo : "");
+  });
+
+  function openModal() { overlay.classList.add("open"); document.getElementById("f-client").focus(); }
+  function closeModal() {
+    overlay.classList.remove("open");
+    document.getElementById("offerForm").reset();
+    document.getElementById("f-stoneLookupResults").innerHTML = "";
+    linkedStoneForNewOffer = null;
+    syncPriceLabel();
+  }
+  document.getElementById("newOfferBtn").addEventListener("click", openModal);
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalCancel").addEventListener("click", closeModal);
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (overlay.classList.contains("open")) closeModal();
+    if (clientModalOverlay.classList.contains("open")) closeClientModal();
+    if (document.getElementById("stoneModalOverlay").classList.contains("open")) document.getElementById("stoneModalOverlay").classList.remove("open");
+    if (document.getElementById("drawerOverlay").classList.contains("open")) closeDetailDrawer();
+    if (!document.getElementById("notifDropdown").hidden) document.getElementById("notifDropdown").hidden = true;
+  });
+
+  document.getElementById("offerForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var type = document.querySelector("input[name='offerType']:checked").value;
+    var payload = {
+      clientName: document.getElementById("f-client").value,
+      contact: document.getElementById("f-contact").value.trim(),
+      channel: document.getElementById("f-channel").value,
+      type: type,
+      shape: document.getElementById("f-shape").value,
+      carat: document.getElementById("f-carat").value.trim(),
+      color: document.getElementById("f-color").value.trim(),
+      clarity: document.getElementById("f-clarity").value.trim(),
+      cut: document.getElementById("f-cut").value.trim(),
+      cert: document.getElementById("f-cert").value.trim(),
+      priceType: document.getElementById("f-priceType").value,
+      price: Number(document.getElementById("f-price").value) || 0,
+      priority: document.getElementById("f-priority").checked,
+      notes: document.getElementById("f-notes").value.trim(),
+      matchedStones: linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : []
+    };
+    try {
+      var offer = await createOfferOnServer(payload);
+      await loadClientsFromServer();
+      populateClientDatalist();
+      closeModal();
+      switchToTab("offers");
+      renderOffersTab();
+      await openDetailDrawer(offer.id);
+    } catch (err) {
+      alert("Could not save offer: " + err.message);
+    }
+  });
+
+  /* =========================================================================
+     EVENTS — Delete offer
+  ========================================================================= */
+  document.getElementById("deleteOfferBtn").addEventListener("click", async function () {
+    var offer = offers.find(function (o) { return o.id === selectedId; });
+    if (!offer) return;
+    var client = clientById(offer.clientId);
+    if (!window.confirm('Delete this offer' + (client ? " from " + client.entityName : "") + "? This cannot be undone.")) return;
+    try {
+      await deleteOfferOnServer(offer.id);
+      selectedId = null;
+      closeDetailDrawer();
+      renderOffersTab();
+    } catch (err) { alert("Could not delete: " + err.message); }
+  });
+
+  /* =========================================================================
+     EVENTS — Notification bell
+  ========================================================================= */
+  function updateNotifBadge() {
+    var count = notifications.filter(function (n) { return !n.read; }).length;
+    var badge = document.getElementById("notifBadge");
+    badge.hidden = count === 0;
+    if (count > 0) badge.textContent = count > 99 ? "99+" : count;
+  }
+  function renderNotifDropdown() {
+    var list = document.getElementById("notifList");
+    if (!notifications.length) { list.innerHTML = '<div class="empty-state" style="padding:20px;">No notifications yet.</div>'; return; }
+    list.innerHTML = notifications.slice(0, 50).map(function (n) {
+      return '<button type="button" class="notif-item' + (n.read ? "" : " unread") + '" data-id="' + n.id + '" data-offer="' + (n.offerId || "") + '">' +
+        '<div class="notif-item-text">' + (n.read ? "" : '<span class="notif-dot"></span>') + esc(n.text) + "</div>" +
+        '<div class="notif-item-time">' + timeAgoShort(n.ts) + "</div></button>";
+    }).join("");
+  }
+  document.getElementById("notifBellBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var dd = document.getElementById("notifDropdown");
+    dd.hidden = !dd.hidden;
+    if (!dd.hidden) renderNotifDropdown();
+  });
+  document.addEventListener("click", function (e) {
+    var dd = document.getElementById("notifDropdown");
+    if (!dd.hidden && !e.target.closest(".notif-wrap")) dd.hidden = true;
+  });
+  document.getElementById("notifMarkAllBtn").addEventListener("click", async function (e) {
+    e.stopPropagation();
+    try { await api("POST", "/api/notifications/read-all"); await loadNotificationsFromServer(); updateNotifBadge(); renderNotifDropdown(); } catch (err) { /* transient */ }
+  });
+  document.getElementById("notifList").addEventListener("click", async function (e) {
+    var item = e.target.closest(".notif-item");
+    if (!item) return;
+    var id = item.getAttribute("data-id");
+    var offerId = item.getAttribute("data-offer");
+    try { await api("POST", "/api/notifications/" + id + "/read"); await loadNotificationsFromServer(); updateNotifBadge(); } catch (err) { /* transient */ }
+    document.getElementById("notifDropdown").hidden = true;
+    if (offerId && offers.some(function (o) { return o.id === offerId; })) await openDetailDrawer(offerId);
+  });
+
+  /* =========================================================================
+     AUTH — login / logout / session bootstrap / polling
+  ========================================================================= */
+  function showLogin() {
+    document.getElementById("loginScreen").hidden = false;
+    document.getElementById("appRoot").hidden = true;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  function showApp(office) {
+    document.getElementById("loginScreen").hidden = true;
+    document.getElementById("appRoot").hidden = false;
+    document.getElementById("officeLabel").textContent = office.displayName;
+  }
+
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function () {
+      Promise.all([loadOffersFromServer(), loadNotificationsFromServer()]).then(function () {
+        renderStats(); renderPipelineBoard(); updateNotifBadge();
+      }).catch(function () { /* a transient network hiccup — next tick retries; 401 is handled by api() */ });
+    }, POLL_INTERVAL_MS);
+  }
+
+  async function bootApp(office) {
+    showApp(office);
+    await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer()]);
+    populateClientDatalist();
+    renderOffersTab();
+    updateNotifBadge();
+    initInventoryConnection();
+    startPolling();
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var username = document.getElementById("login-username").value.trim();
+    var password = document.getElementById("login-password").value;
+    var errEl = document.getElementById("loginError");
+    errEl.textContent = "";
+    try {
+      var data = await api("POST", "/api/auth/login", { username: username, password: password });
+      await bootApp(data.office);
+    } catch (err) {
+      errEl.textContent = "Invalid username or password.";
+    }
+  });
+  document.getElementById("logoutBtn").addEventListener("click", async function () {
+    try { await api("POST", "/api/auth/logout"); } catch (e) { /* ignore */ }
+    showLogin();
+  });
+
+  /* =========================================================================
+     INIT
+  ========================================================================= */
+  api("GET", "/api/auth/me").then(function (data) { return bootApp(data.office); }).catch(function () { showLogin(); });
+})();
+</script>
