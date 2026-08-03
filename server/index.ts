@@ -32,8 +32,9 @@ app.use("/api/clients", clientsRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/notifications", notificationsRouter);
 
-app.use(express.static(publicDir));
+app.use(express.static(publicDir, { etag: false, lastModified: false, cacheControl: false }));
 app.get("*", (_req, res) => {
+  res.set("Cache-Control", "no-store");
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
