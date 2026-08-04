@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { sql } from "../../lib/db";
-import { rowToStone } from "../../lib/mappers";
-import { clearInventoryStaging, appendInventoryStagingChunk, commitStagedInventory, stageAndSwapInventory } from "../../lib/inventorySwap";
-import { normalizeStone, parseWorkbookBuffer, buildInventoryFromRows, type InventoryStone } from "../../lib/xlsxParse";
-import { fetchLatestAutoMail } from "../../lib/gmailImap";
+import { sql } from "../../lib/db.js";
+import { rowToStone } from "../../lib/mappers.js";
+import { clearInventoryStaging, appendInventoryStagingChunk, commitStagedInventory, stageAndSwapInventory } from "../../lib/inventorySwap.js";
+import { normalizeStone, parseWorkbookBuffer, buildInventoryFromRows, type InventoryStone } from "../../lib/xlsxParse.js";
+import { fetchLatestAutoMail } from "../../lib/gmailImap.js";
 
 const router = Router();
 

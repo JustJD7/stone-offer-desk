@@ -1,4 +1,4 @@
-import { sql } from "./db";
+import { sql } from "./db.js";
 
 /** Find a client by name (case-insensitive) or create it — mirrors the
  *  frontend's old resolveOrCreateClient, now done server-side so concurrent

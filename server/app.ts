@@ -2,10 +2,10 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import offersRouter from "./routes/offers";
-import clientsRouter from "./routes/clients";
-import inventoryRouter from "./routes/inventory";
-import notificationsRouter from "./routes/notifications";
+import offersRouter from "./routes/offers.js";
+import clientsRouter from "./routes/clients.js";
+import inventoryRouter from "./routes/inventory.js";
+import notificationsRouter from "./routes/notifications.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "..", "public");

@@ -7,9 +7,9 @@
  * on demand — this script just runs it unattended, on a schedule.
  */
 import "dotenv/config";
-import { fetchLatestAutoMail } from "../lib/gmailImap";
-import { parseWorkbookBuffer, buildInventoryFromRows } from "../lib/xlsxParse";
-import { stageAndSwapInventory } from "../lib/inventorySwap";
+import { fetchLatestAutoMail } from "../lib/gmailImap.js";
+import { parseWorkbookBuffer, buildInventoryFromRows } from "../lib/xlsxParse.js";
+import { stageAndSwapInventory } from "../lib/inventorySwap.js";
 
 async function main() {
   console.log("[ingest-automail] starting…");

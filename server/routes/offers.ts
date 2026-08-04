@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { sql } from "../../lib/db";
-import { rowToOffer } from "../../lib/mappers";
-import { resolveOrCreateClient } from "../../lib/clients";
+import { sql } from "../../lib/db.js";
+import { rowToOffer } from "../../lib/mappers.js";
+import { resolveOrCreateClient } from "../../lib/clients.js";
 
 const router = Router();
 

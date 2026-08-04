@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { sql } from "../../lib/db";
-import { rowToClient } from "../../lib/mappers";
+import { sql } from "../../lib/db.js";
+import { rowToClient } from "../../lib/mappers.js";
 
 const router = Router();
 

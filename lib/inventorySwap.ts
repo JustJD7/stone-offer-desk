@@ -1,5 +1,5 @@
-import { sql, withTransaction } from "./db";
-import type { InventoryStone } from "./xlsxParse";
+import { sql, withTransaction } from "./db.js";
+import type { InventoryStone } from "./xlsxParse.js";
 
 const COLUMNS = [
   "stone_id", "shape", "weight", "color", "clarity", "cut", "polish", "symmetry", "fluorescence",

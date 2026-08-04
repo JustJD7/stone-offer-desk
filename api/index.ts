@@ -4,7 +4,7 @@
 // exactly like the plain Node server does everywhere else.
 //
 // The app is imported lazily inside the handler (rather than
-// `import app from "../server/app"` at the top) and any import-time crash
+// `import app from "../server/app.js"` at the top) and any import-time crash
 // is caught and returned as real JSON here — a startup exception thrown at
 // module load normally just shows Vercel's generic FUNCTION_INVOCATION_FAILED
 // with no detail, which made a real bug here impossible to diagnose remotely.
