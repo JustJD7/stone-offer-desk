@@ -14,7 +14,7 @@ let appPromise: Promise<any> | null = null;
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
-    if (!appPromise) appPromise = import("../server/app").then((m) => m.default);
+    if (!appPromise) appPromise = import("../server/app.js").then((m) => m.default);
     const app = await appPromise;
     return app(req, res);
   } catch (err) {
