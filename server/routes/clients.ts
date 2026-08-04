@@ -1,21 +1,14 @@
 import { Router } from "express";
 import { sql } from "../../lib/db";
-import { requireOffice } from "../../lib/session";
 import { rowToClient } from "../../lib/mappers";
 
 const router = Router();
 
-router.get("/", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const rows = await sql`select * from clients order by entity_name asc`;
+router.get("/", async (req, res) => {  const rows = await sql`select * from clients order by entity_name asc`;
   res.status(200).json({ clients: rows.map(rowToClient) });
 });
 
-router.post("/", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const body = (req.body ?? {}) as { entityName?: string; country?: string; stockCategory?: string };
+router.post("/", async (req, res) => {  const body = (req.body ?? {}) as { entityName?: string; country?: string; stockCategory?: string };
   const entityName = (body.entityName ?? "").trim();
   if (!entityName) { res.status(400).json({ error: "entityName is required." }); return; }
   const rows = await sql`
@@ -27,9 +20,6 @@ router.post("/", async (req, res) => {
 });
 
 router.post("/import", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-
   const body = (req.body ?? {}) as { rows?: { entityName: string; country?: string; stockCategory?: string }[] };
   const rows = Array.isArray(body.rows) ? body.rows : [];
   if (!rows.length) { res.status(400).json({ error: "rows must be a non-empty array." }); return; }
@@ -60,10 +50,7 @@ router.post("/import", async (req, res) => {
   res.status(200).json({ added, updated, total: totalRows[0].count });
 });
 
-router.patch("/:id", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const id = req.params.id;
+router.patch("/:id", async (req, res) => {  const id = req.params.id;
   const body = (req.body ?? {}) as { entityName?: string; country?: string; stockCategory?: string };
   const current = await sql`select * from clients where id = ${id}`;
   if (!current[0]) { res.status(404).json({ error: "Client not found" }); return; }
@@ -78,10 +65,7 @@ router.patch("/:id", async (req, res) => {
   res.status(200).json({ client: rowToClient(rows[0]) });
 });
 
-router.delete("/:id", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const id = req.params.id;
+router.delete("/:id", async (req, res) => {  const id = req.params.id;
   await sql`update offers set client_id = null where client_id = ${id}`;
   await sql`delete from clients where id = ${id}`;
   res.status(200).json({ ok: true });

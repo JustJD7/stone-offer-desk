@@ -4,17 +4,6 @@
 create extension if not exists pgcrypto; -- for gen_random_uuid()
 
 -- ---------------------------------------------------------------------------
--- Offices: one shared login per office (per the "simple shared login" choice)
--- ---------------------------------------------------------------------------
-create table if not exists offices (
-  id            uuid primary key default gen_random_uuid(),
-  username      text unique not null,
-  password_hash text not null,
-  display_name  text not null,
-  created_at    timestamptz not null default now()
-);
-
--- ---------------------------------------------------------------------------
 -- Clients: trading-partner directory (bulk-imported once, then edited/added to)
 -- ---------------------------------------------------------------------------
 create table if not exists clients (

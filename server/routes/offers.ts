@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { sql } from "../../lib/db";
-import { requireOffice } from "../../lib/session";
 import { rowToOffer } from "../../lib/mappers";
 import { resolveOrCreateClient } from "../../lib/clients";
 
@@ -9,17 +8,12 @@ const router = Router();
 interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number }
 interface MatchedStone { stoneId: string; [key: string]: unknown }
 
-router.get("/", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
+router.get("/", async (_req, res) => {
   const rows = await sql`select * from offers order by created_at desc`;
   res.status(200).json({ offers: rows.map(rowToOffer) });
 });
 
 router.post("/", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-
   const body = (req.body ?? {}) as Record<string, unknown>;
   const clientName = String(body.clientName ?? "").trim();
   const type = String(body.type ?? "");
@@ -46,7 +40,7 @@ router.post("/", async (req, res) => {
       ${clientId}, ${String(body.contact ?? "")}, ${String(body.channel ?? "")}, ${type},
       ${shape}, ${carat}, ${color}, ${clarity}, ${String(body.cut ?? "")}, ${String(body.cert ?? "")},
       ${priceType}, ${Number(body.price) || 0}, ${!!body.priority}, 'new', ${String(body.notes ?? "")},
-      ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, ${office.username}
+      ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, 'shared'
     )
     returning *
   `;
@@ -63,9 +57,6 @@ router.post("/", async (req, res) => {
 });
 
 router.patch("/:id", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-
   const id = req.params.id;
   const body = (req.body ?? {}) as {
     version?: number; status?: string; priority?: boolean; markRead?: boolean;
@@ -128,8 +119,6 @@ router.patch("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
   const id = req.params.id;
   await sql`delete from notifications where offer_id = ${id}`;
   await sql`delete from offers where id = ${id}`;

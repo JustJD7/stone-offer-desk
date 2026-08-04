@@ -98,17 +98,6 @@
      of specificity, silently leaving "hidden" elements fully visible. */
   [hidden] { display: none !important; }
 
-  /* ---------- Login ---------- */
-  .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 32px 30px; width: 100%; max-width: 380px; }
-  .login-card h1 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0 0 4px; }
-  .login-card p.sub { color: var(--ink-muted); font-size: 12.5px; margin: 0 0 20px; }
-  .login-field { margin-bottom: 14px; }
-  .login-field label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); font-weight: 600; margin-bottom: 5px; }
-  .login-field input { width: 100%; font-family: var(--font-body); font-size: 14px; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
-  .login-error { color: var(--status-rejected); font-size: 12.5px; margin: -4px 0 12px; min-height: 1em; }
-  .office-label { font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
-
   /* ---------- Header ---------- */
   .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
   .brand { display: flex; align-items: center; gap: 12px; }
@@ -387,20 +376,7 @@
 </head>
 <body>
 
-<div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <h1>Stone Offer Desk</h1>
-    <p class="sub">Sign in with your office's shared login.</p>
-    <form id="loginForm">
-      <div class="login-field"><label for="login-username">Username</label><input id="login-username" autocomplete="username" required></div>
-      <div class="login-field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div>
-      <div class="login-error" id="loginError"></div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Sign in</button>
-    </form>
-  </div>
-</div>
-
-<div id="appRoot" hidden>
+<div id="appRoot">
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -416,7 +392,6 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <span class="office-label" id="officeLabel"></span>
         <div class="notif-wrap">
           <button class="btn btn-ghost notif-bell" id="notifBellBtn" type="button" aria-label="Notifications">🔔<span class="notif-badge" id="notifBadge" hidden>0</span></button>
           <div class="notif-dropdown" id="notifDropdown" hidden>
@@ -425,7 +400,6 @@
           </div>
         </div>
         <button class="btn btn-primary" id="newOfferBtn" type="button">+ New Offer</button>
-        <button class="btn btn-ghost btn-sm" id="logoutBtn" type="button">Log out</button>
       </div>
     </header>
 
@@ -663,7 +637,6 @@
     if (body !== undefined) { opts.headers = { "Content-Type": "application/json" }; opts.body = JSON.stringify(body); }
     return fetch(path, opts).then(function (res) {
       return res.json().catch(function () { return null; }).then(function (data) {
-        if (res.status === 401) { showLogin(); var authErr = new Error("Not authenticated"); authErr.status = 401; throw authErr; }
         if (!res.ok) { var err = new Error((data && data.error) || ("Request failed: " + res.status)); err.status = res.status; err.data = data; throw err; }
         return data;
       });
@@ -1781,30 +1754,18 @@
   });
 
   /* =========================================================================
-     AUTH — login / logout / session bootstrap / polling
+     BOOT / polling — no login; the app is open to anyone with the URL
   ========================================================================= */
-  function showLogin() {
-    document.getElementById("loginScreen").hidden = false;
-    document.getElementById("appRoot").hidden = true;
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  }
-  function showApp(office) {
-    document.getElementById("loginScreen").hidden = true;
-    document.getElementById("appRoot").hidden = false;
-    document.getElementById("officeLabel").textContent = office.displayName;
-  }
-
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(function () {
       Promise.all([loadOffersFromServer(), loadNotificationsFromServer()]).then(function () {
         renderStats(); renderPipelineBoard(); updateNotifBadge();
-      }).catch(function () { /* a transient network hiccup — next tick retries; 401 is handled by api() */ });
+      }).catch(function () { /* transient network hiccup — next tick retries */ });
     }, POLL_INTERVAL_MS);
   }
 
-  async function bootApp(office) {
-    showApp(office);
+  async function bootApp() {
     await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer()]);
     populateClientDatalist();
     renderOffersTab();
@@ -1813,34 +1774,10 @@
     startPolling();
   }
 
-  document.getElementById("loginForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    var username = document.getElementById("login-username").value.trim();
-    var password = document.getElementById("login-password").value;
-    var errEl = document.getElementById("loginError");
-    errEl.textContent = "";
-    var data;
-    try {
-      data = await api("POST", "/api/auth/login", { username: username, password: password });
-    } catch (err) {
-      errEl.textContent = "Invalid username or password.";
-      return;
-    }
-    try {
-      await bootApp(data.office);
-    } catch (err) {
-      errEl.textContent = "Signed in, but couldn't load the app: " + err.message;
-    }
-  });
-  document.getElementById("logoutBtn").addEventListener("click", async function () {
-    try { await api("POST", "/api/auth/logout"); } catch (e) { /* ignore */ }
-    showLogin();
-  });
-
   /* =========================================================================
      INIT
   ========================================================================= */
-  api("GET", "/api/auth/me").then(function (data) { return bootApp(data.office); }).catch(function () { showLogin(); });
+  bootApp();
 })();
 </script>
 </body>

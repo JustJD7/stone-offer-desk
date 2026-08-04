@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { sql } from "../../lib/db";
-import { requireOffice } from "../../lib/session";
 import { rowToStone } from "../../lib/mappers";
 import { clearInventoryStaging, appendInventoryStagingChunk, commitStagedInventory } from "../../lib/inventorySwap";
 import { normalizeStone, type InventoryStone } from "../../lib/xlsxParse";
@@ -8,9 +7,6 @@ import { normalizeStone, type InventoryStone } from "../../lib/xlsxParse";
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-
   const [stones, metaRows] = await Promise.all([
     sql`select stone_id, shape, weight, color, clarity, cut, polish, symmetry, fluorescence, lab, report_no, rate, amt, rap_rate, rap_amt, back, status, location, cert_date, image_link, video, cert_filename from inventory`,
     sql`select * from inventory_meta where id = 1`
@@ -24,36 +20,24 @@ router.get("/", async (req, res) => {
   });
 });
 
-router.get("/:stoneId", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const stoneId = req.params.stoneId;
+router.get("/:stoneId", async (req, res) => {  const stoneId = req.params.stoneId;
   const rows = await sql`select stone_id, raw from inventory where stone_id = ${stoneId}`;
   if (!rows[0]) { res.status(404).json({ error: "Stone not found" }); return; }
   res.status(200).json({ stoneId: rows[0].stone_id, raw: rows[0].raw ?? {} });
 });
 
-router.post("/import/start", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  await clearInventoryStaging();
+router.post("/import/start", async (req, res) => {  await clearInventoryStaging();
   res.status(200).json({ ok: true });
 });
 
-router.post("/import/append", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const body = (req.body ?? {}) as { stones?: Partial<InventoryStone>[] };
+router.post("/import/append", async (req, res) => {  const body = (req.body ?? {}) as { stones?: Partial<InventoryStone>[] };
   const stones = Array.isArray(body.stones) ? body.stones : [];
   if (!stones.length) { res.status(400).json({ error: "stones must be a non-empty array." }); return; }
   await appendInventoryStagingChunk(stones.map(normalizeStone));
   res.status(200).json({ appended: stones.length });
 });
 
-router.post("/import/commit", async (req, res) => {
-  const office = await requireOffice(req, res);
-  if (!office) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const body = (req.body ?? {}) as { fileName?: string; rowCount?: number };
+router.post("/import/commit", async (req, res) => {  const body = (req.body ?? {}) as { fileName?: string; rowCount?: number };
   if (!body.fileName || !Number.isFinite(body.rowCount)) {
     res.status(400).json({ error: "fileName and rowCount are required." });
     return;
