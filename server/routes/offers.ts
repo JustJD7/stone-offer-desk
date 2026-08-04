@@ -11,6 +11,15 @@ const router = Router();
 interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number; by?: string }
 interface MatchedStone { stoneId: string; rate?: number; rapRate?: number; amt?: number; [key: string]: unknown }
 
+function formatThreadForExport(thread: ThreadMessage[] | null | undefined): string {
+  return (thread ?? []).map((m) => {
+    const who = m.author === "company" ? (m.by || "Company") : "Client";
+    const ts = new Date(m.ts).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+    const price = m.price != null ? ` [${m.price}]` : "";
+    return `${ts} - ${who}: ${m.message}${price}`;
+  }).join("\n");
+}
+
 router.get("/", async (_req, res) => {
   const rows = await sql`select * from offers order by created_at desc`;
   res.status(200).json({ offers: rows.map(rowToOffer) });
@@ -28,7 +37,7 @@ router.get("/export", requireAdmin, async (_req, res) => {
     "Client", "Country", "Type", "Status", "Priority", "Shape", "Carat", "Color", "Clarity", "Cut", "Certificate",
     "Channel", "Contact", "Price Type", "Price (as entered)", "Matched Stone ID",
     "Our Discount %", "Our Rate/ct", "Our Total", "Client Discount %", "Client Rate/ct", "Client Total",
-    "Diff Rate/ct", "Diff Total", "Favorable to Us", "Created By", "Created At", "Notes"
+    "Diff Rate/ct", "Diff Total", "Favorable to Us", "Created By", "Created At", "Notes", "Negotiation Thread"
   ];
 
   const body = rows.map((r: any) => {
@@ -47,7 +56,8 @@ router.get("/export", requireAdmin, async (_req, res) => {
       cmp.diffRate != null ? Number(cmp.diffRate.toFixed(2)) : "",
       cmp.diffTotal != null ? Number(cmp.diffTotal.toFixed(2)) : "",
       cmp.favorable == null ? "" : (cmp.favorable ? "Yes" : "No"),
-      r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || ""
+      r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || "",
+      formatThreadForExport(r.thread)
     ];
   });
 
@@ -131,7 +141,8 @@ router.patch("/:id", async (req, res) => {
     const entry = { ...body.appendMessage };
     if (entry.author === "company") entry.by = req.user!.name;
     thread = [...thread, entry];
-    if (entry.author === "client") unread = true;
+    // Any new message is activity another office needs to see, not just client replies.
+    unread = true;
   }
 
   let matchedStones = (row.matched_stones as MatchedStone[]) ?? [];
@@ -181,12 +192,13 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  if (body.appendMessage && body.appendMessage.author === "client") {
+  if (body.appendMessage) {
     const clientRow = await sql`select c.entity_name from clients c join offers o on o.client_id = c.id where o.id = ${id}`;
     const entityName = (clientRow[0]?.entity_name as string) || "Client";
+    const byName = body.appendMessage.author === "company" ? req.user!.name : "Client";
     await sql`
       insert into notifications (type, offer_id, text)
-      values ('new_message', ${id}, ${entityName + ": " + String(body.appendMessage.message).slice(0, 80)})
+      values ('new_message', ${id}, ${byName + " on " + entityName + ": " + String(body.appendMessage.message).slice(0, 80)})
     `;
   }
 

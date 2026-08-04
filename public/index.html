@@ -337,8 +337,8 @@
   .thread-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); margin-bottom: 10px; font-weight: 700; }
   .thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .msg { max-width: 86%; padding: 9px 12px; border-radius: 11px; font-size: 13px; position: relative; }
-  .msg-company { align-self: flex-end; background: var(--accent-soft); border-bottom-right-radius: 3px; }
-  .msg-client { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 3px; }
+  .msg-mine { align-self: flex-end; background: var(--accent-soft); border-bottom-right-radius: 3px; }
+  .msg-theirs, .msg-client { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 3px; }
   .msg-meta { display: flex; gap: 8px; align-items: center; font-size: 10.5px; color: var(--ink-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; font-weight: 700; }
   .msg-price { display: inline-block; margin-top: 6px; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--accent-strong); }
 
@@ -413,6 +413,7 @@
   .our-pricing-grid { display: flex; gap: 18px; flex-wrap: wrap; }
   .our-pricing-grid span { display: block; font-size: 11px; color: var(--ink-muted); }
   .our-pricing-grid b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .stone-links-row { display: flex; gap: 8px; margin-top: 10px; grid-column: 1/-1; }
 
   @media (max-width: 980px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
@@ -997,7 +998,7 @@
         (disc != null ? '<div><span>Discount</span><b>' + disc.toFixed(2) + '% off Rap</b></div>' : "") +
         '<div><span>Rate/ct</span><b>' + money2(rate) + '</b></div>' +
         '<div><span>Total</span><b>' + money2(total) + '</b></div>' +
-      "</div></div>";
+      "</div>" + stoneLinksHtml(stone) + "</div>";
   }
 
   /** Full three-row comparison table (Discount / Rate / Total) — "Our Price"
@@ -1232,7 +1233,14 @@
     }).join("");
   }
 
-  function toChipShape(stone) { return { stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity, rate: stone.rate, rapRate: stone.rapRate, amt: stone.amt, lab: stone.lab, imageLink: stone.imageLink }; }
+  function toChipShape(stone) { return { stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity, rate: stone.rate, rapRate: stone.rapRate, amt: stone.amt, lab: stone.lab, imageLink: stone.imageLink, video: stone.video }; }
+  function stoneLinksHtml(stone) {
+    if (!stone) return "";
+    var links = [];
+    if (isUrl(stone.imageLink)) links.push('<a href="' + esc(stone.imageLink) + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm">🖼 Photo</a>');
+    if (isUrl(stone.video)) links.push('<a href="' + esc(stone.video) + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm">🎥 Video</a>');
+    return links.length ? '<div class="stone-links-row">' + links.join("") + "</div>" : "";
+  }
 
   function renderDetail() {
     var panel = document.getElementById("detailPanel");
@@ -1255,8 +1263,14 @@
       .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
 
     var thread = (o.thread || []).map(function (m) {
-      var who = m.author === "company" ? ("Company" + (m.by ? " (" + esc(m.by) + ")" : "")) : "Client";
-      return '<div class="msg msg-' + m.author + '"><div class="msg-meta"><span>' + who + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
+      if (m.author !== "company") {
+        return '<div class="msg msg-client"><div class="msg-meta"><span>Client</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
+          "<div>" + esc(m.message) + "</div>" +
+          (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
+      }
+      var mine = currentUser && m.by && m.by === currentUser.name;
+      var who = mine ? "You" : (m.by || "Company");
+      return '<div class="msg ' + (mine ? "msg-mine" : "msg-theirs") + '"><div class="msg-meta"><span>' + esc(who) + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
         "<div>" + esc(m.message) + "</div>" +
         (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
     }).join("");
@@ -1275,7 +1289,7 @@
         '<div class="stepper">' + stepper + "</div>" +
         '<div class="spec-grid">' + specs + "</div>" +
         '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' + (o.type === "sell" ? "Asking Price" : "Client Budget") + '</div><div class="price-main">' + priceDisplay(o) + "</div></div><div class=\"price-note\">" +
-          (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + "</div>" +
+          (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + stoneLinksHtml(ref) + "</div>" +
         (o.notes ? '<div class="notes-block"><div class="spec-label">Notes</div>' + esc(o.notes) + "</div>" : "") +
         '<div class="thread-block"><div class="thread-title">Negotiation Thread</div><div class="thread">' + thread + "</div>" +
           '<form class="msg-form" data-id="' + o.id + '">' +
