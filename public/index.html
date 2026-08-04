@@ -276,6 +276,16 @@
   .compare-row.good { color: var(--status-accepted); font-weight: 700; }
   .compare-row.bad { color: var(--status-rejected); font-weight: 700; }
 
+  .compare-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .compare-table caption { text-align: left; font-size: 11px; color: var(--ink-muted); margin-bottom: 6px; }
+  .compare-table th { text-align: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-muted); font-weight: 700; padding: 0 0 6px; }
+  .compare-table th:first-child, .compare-table td:first-child { text-align: left; }
+  .compare-table td { text-align: right; padding: 5px 0; border-top: 1px solid var(--border); }
+  .compare-table td.label { color: var(--ink-muted); font-size: 11.5px; }
+  .compare-table td.diff.good { color: var(--status-accepted); font-weight: 700; }
+  .compare-table td.diff.bad { color: var(--status-rejected); font-weight: 700; }
+  .compare-table td.client { color: var(--accent-strong); font-weight: 600; }
+
   .notes-block { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink-2); }
   .notes-block .spec-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-muted); margin-bottom: 5px; }
 
@@ -887,6 +897,55 @@
     var eff = computeEffectiveRate(o);
     return eff != null ? eff * carat : 0;
   }
+  function money2(n) { return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function signed(n, formatter) { return (n >= 0 ? "+" : "-") + formatter(Math.abs(n)); }
+
+  /** Full three-row comparison table (Discount / Rate / Total) — "Our Price"
+   *  is derived from the linked inventory stone (rate + Rap rate), "Client
+   *  Offer" is derived from whichever of Rate/Amt/Back the offer actually
+   *  used, normalized onto the same Rap-rate reference so all three price
+   *  types are directly comparable regardless of which one the client quoted. */
+  function buildCompareTable(o, ref) {
+    if (!ref || !ref.rapRate) return "";
+    var carat = parseFloat(o.carat) || 1;
+    var ourRate = ref.rate;
+    var ourRap = ref.rapRate;
+    var ourTotal = ref.amt || ourRate * carat;
+    var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
+
+    var clientRate, clientTotal, clientDisc;
+    if (o.priceType === "back") {
+      clientDisc = -o.price;
+      clientRate = ourRap * (1 + o.price / 100);
+      clientTotal = clientRate * carat;
+    } else if (o.priceType === "per_carat") {
+      clientRate = o.price;
+      clientTotal = clientRate * carat;
+      clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
+    } else {
+      clientTotal = o.price;
+      clientRate = clientTotal / carat;
+      clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
+    }
+
+    // One verdict drives all three rows' color — they're the same comparison in different units.
+    var favorable = o.type === "buy" ? clientRate > ourRate : clientRate < ourRate;
+    var favClass = favorable ? "good" : "bad";
+
+    var rows = [];
+    if (ourDisc != null && clientDisc != null) {
+      rows.push(["Discount", ourDisc.toFixed(2) + "%", clientDisc.toFixed(2) + "%", signed(ourDisc - clientDisc, function (v) { return v.toFixed(2) + "%"; })]);
+    }
+    rows.push(["Rate/ct", money2(ourRate), money2(clientRate), signed(clientRate - ourRate, money2)]);
+    rows.push(["Total", money2(ourTotal), money2(clientTotal), signed(clientTotal - ourTotal, money2)]);
+
+    return '<table class="compare-table">' +
+      '<caption>Vs our stone ' + esc(ref.stoneId) + "</caption>" +
+      "<thead><tr><th></th><th>Our Price</th><th>Client Offer</th><th>Diff</th></tr></thead>" +
+      "<tbody>" + rows.map(function (r) {
+        return "<tr><td class=\"label\">" + r[0] + "</td><td>" + r[1] + '</td><td class="client">' + r[2] + '</td><td class="diff ' + favClass + '">' + r[3] + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
   function priceDisplay(o) {
     if (o.priceType === "back") return (o.price >= 0 ? "+" : "") + o.price + "% off Rap";
     return o.priceType === "per_carat" ? money(o.price) + "/ct" : money(o.price) + " flat";
@@ -1121,17 +1180,7 @@
     }).join("");
 
     var effRate = computeEffectiveRate(o, ref);
-    var compareHtml = "";
-    if (ref) {
-      var diffPct = (effRate != null && ref.rate) ? ((effRate - ref.rate) / ref.rate * 100) : null;
-      var favorable = diffPct == null ? null : (o.type === "sell" ? diffPct < 0 : diffPct > 0);
-      compareHtml = '<div class="compare-block">' +
-        '<div class="compare-row"><span>Our rate (' + esc(ref.stoneId) + ")</span><span>" + money(ref.rate) + "/ct</span></div>" +
-        (ref.rapRate ? '<div class="compare-row"><span>Our Rap rate</span><span>' + money(ref.rapRate) + "/ct</span></div>" : "") +
-        (effRate != null ? '<div class="compare-row"><span>Client price (equivalent)</span><span>' + money(effRate) + "/ct</span></div>" : "") +
-        (diffPct != null ? '<div class="compare-row ' + (favorable ? "good" : "bad") + '"><span>Vs our rate</span><span>' + (diffPct >= 0 ? "+" : "") + diffPct.toFixed(1) + "%</span></div>" : "") +
-      "</div>";
-    }
+    var compareHtml = buildCompareTable(o, ref);
 
     var pricePlaceholder = o.priceType === "back" ? "Counter Back % (e.g. -38)" : (o.priceType === "per_carat" ? "Counter price ($/ct)" : "Counter price ($ total)");
 
