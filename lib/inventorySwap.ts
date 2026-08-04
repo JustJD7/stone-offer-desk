@@ -42,28 +42,32 @@ export async function appendInventoryStagingChunk(stones: InventoryStone[]): Pro
 
 export async function commitStagedInventory(meta: {
   fileName: string;
-  source: "manual-upload" | "gmail-worker";
+  source: "manual-upload" | "gmail-refresh";
   rowCount: number;
+  emailDate?: Date | null;
 }): Promise<void> {
   await withTransaction(async (txSql) => {
     await txSql`truncate table inventory`;
     await txSql`insert into inventory select * from inventory_staging`;
     await txSql`
-      insert into inventory_meta (id, file_name, source, row_count, imported_at)
-      values (1, ${meta.fileName}, ${meta.source}, ${meta.rowCount}, now())
+      insert into inventory_meta (id, file_name, source, row_count, imported_at, email_date)
+      values (1, ${meta.fileName}, ${meta.source}, ${meta.rowCount}, now(), ${meta.emailDate ?? null})
       on conflict (id) do update set
         file_name = excluded.file_name, source = excluded.source,
-        row_count = excluded.row_count, imported_at = excluded.imported_at
+        row_count = excluded.row_count, imported_at = excluded.imported_at,
+        email_date = excluded.email_date
     `;
   });
   await sql`truncate table inventory_staging`;
 }
 
-/** Single-shot convenience for the Gmail worker (Phase 2), which holds every
- *  row in memory at once and isn't subject to any HTTP body size limit. */
+/** Single-shot convenience for callers that hold every row in memory at once
+ *  (the on-demand refresh endpoint and the scheduled worker), so they aren't
+ *  subject to any HTTP body size limit the chunked start/append/commit flow
+ *  exists for. */
 export async function stageAndSwapInventory(
   stones: InventoryStone[],
-  meta: { fileName: string; source: "manual-upload" | "gmail-worker" }
+  meta: { fileName: string; source: "manual-upload" | "gmail-refresh"; emailDate?: Date | null }
 ): Promise<void> {
   await clearInventoryStaging();
   const CHUNK = 500;

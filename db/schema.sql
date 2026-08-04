@@ -86,13 +86,14 @@ create index if not exists inventory_status_idx on inventory (status);
 create table if not exists inventory_staging (like inventory including all);
 
 -- Singleton row describing the last successful inventory load (manual upload
--- or the automated Gmail worker) — surfaced in the Inventory tab's status bar.
+-- or the automated Gmail refresh) — surfaced in the Inventory tab's status bar.
 create table if not exists inventory_meta (
   id          integer primary key default 1,
   file_name   text,
-  source      text, -- 'manual-upload' | 'gmail-worker'
+  source      text, -- 'manual-upload' | 'gmail-refresh'
   row_count   integer,
-  imported_at timestamptz,
+  imported_at timestamptz, -- when we processed it
+  email_date  timestamptz, -- when the source email itself was sent (null for manual uploads)
   constraint inventory_meta_singleton check (id = 1)
 );
 

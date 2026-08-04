@@ -445,8 +445,7 @@
         <div class="conn-bar">
           <div class="conn-status" id="invConnStatus">Loading inventory…</div>
           <div class="conn-actions">
-            <button class="btn btn-sm" id="connectAutoMailBtn" type="button">Connect AutoMail.xlsx</button>
-            <button class="btn btn-sm" id="refreshAutoMailBtn" type="button" hidden>Refresh Now</button>
+            <button class="btn btn-sm btn-primary" id="refreshFromEmailBtn" type="button">🔄 Refresh from Email</button>
             <label class="btn btn-sm btn-ghost btn-file">Upload manually<input type="file" id="manualInventoryUpload" accept=".xlsx"></label>
           </div>
         </div>
@@ -617,8 +616,6 @@
   var STATUS_ORDER = ["new", "review", "negotiating", "accepted", "rejected"];
   var INV_PAGE_SIZE = 50;
   var POLL_INTERVAL_MS = 18000;
-  var IDB_NAME = "stoneOfferDeskFS";
-  var IDB_STORE = "handles";
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -647,7 +644,6 @@
      STATE
   ========================================================================= */
   var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [];
-  var automailHandle = null;
   var selectedId = null;
   var matchQueries = {};
   var currentInvPage = 0;
@@ -656,36 +652,6 @@
   var pollTimer = null;
 
   function clientById(id) { for (var i = 0; i < clients.length; i++) if (clients[i].id === id) return clients[i]; return null; }
-
-  /* ---- IndexedDB — persists the File System Access handle across reloads ---- */
-  function idbOpen() {
-    return new Promise(function (resolve, reject) {
-      var req = indexedDB.open(IDB_NAME, 1);
-      req.onupgradeneeded = function () { req.result.createObjectStore(IDB_STORE); };
-      req.onsuccess = function () { resolve(req.result); };
-      req.onerror = function () { reject(req.error); };
-    });
-  }
-  function idbGet(key) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(IDB_STORE, "readonly");
-        var req = tx.objectStore(IDB_STORE).get(key);
-        req.onsuccess = function () { resolve(req.result); };
-        req.onerror = function () { reject(req.error); };
-      });
-    });
-  }
-  function idbSet(key, value) {
-    return idbOpen().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(IDB_STORE, "readwrite");
-        tx.objectStore(IDB_STORE).put(value, key);
-        tx.oncomplete = function () { resolve(); };
-        tx.onerror = function () { reject(tx.error); };
-      });
-    });
-  }
 
   /* =========================================================================
      MINIMAL XLSX PARSER (browser-side, unchanged) — parses the file locally;
@@ -968,11 +934,14 @@
   }
 
   function renderInvConnStatusFromMeta() {
-    if (!inventoryMeta) { setInvStatus('No inventory loaded yet — connect or upload AutoMail.xlsx above.'); return; }
-    setInvStatus(
-      (inventoryMeta.source === "gmail-worker" ? "Auto-refreshed" : "Connected") + " — " + inventoryMeta.fileName +
-      " · " + Number(inventoryMeta.rowCount).toLocaleString() + " stones · " + timeAgoShort(inventoryMeta.importedAt)
-    );
+    if (!inventoryMeta) { setInvStatus('No inventory loaded yet — click "Refresh from Email" or upload a file above.'); return; }
+    var parts = [
+      (inventoryMeta.source === "gmail-refresh" ? "From email" : "Uploaded manually") + " — " + inventoryMeta.fileName,
+      Number(inventoryMeta.rowCount).toLocaleString() + " stones"
+    ];
+    if (inventoryMeta.emailDate) parts.push("Email sent " + fmtDateTime(inventoryMeta.emailDate));
+    parts.push("checked " + timeAgoShort(inventoryMeta.importedAt));
+    setInvStatus(parts.join(" · "));
   }
 
   async function createOfferOnServer(payload) {
@@ -1327,44 +1296,22 @@
       return uploadInventoryToServer(file.name, stones);
     }).then(function () {
       return loadInventoryFromServer();
-    }).then(function () {
-      document.getElementById("connectAutoMailBtn").hidden = !!automailHandle;
-      document.getElementById("refreshAutoMailBtn").hidden = !automailHandle;
     }).catch(function (e) { setInvStatus("Failed: " + e.message); });
   }
-  function loadInventoryFromHandle(handle) { setInvStatus("Reading " + handle.name + "…"); return handle.getFile().then(loadInventoryFromFile); }
 
-  function connectAutoMailFile() {
-    if (!window.showOpenFilePicker) { setInvStatus("This browser doesn't support direct file access — use 'Upload manually' instead."); return; }
-    window.showOpenFilePicker({ types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }] })
-      .then(function (handles) {
-        var handle = handles[0];
-        return idbSet("automailHandle", handle).then(function () {
-          automailHandle = handle;
-          return handle.requestPermission({ mode: "read" });
-        }).then(function (perm) {
-          if (perm === "granted") return loadInventoryFromHandle(handle);
-          setInvStatus("Permission not granted for " + handle.name + ".");
-        });
-      }).catch(function (e) { if (e.name !== "AbortError") setInvStatus("Could not connect file: " + e.message); });
-  }
-  function refreshAutoMail() {
-    if (!automailHandle) return connectAutoMailFile();
-    automailHandle.requestPermission({ mode: "read" }).then(function (perm) {
-      if (perm === "granted") return loadInventoryFromHandle(automailHandle);
-      setInvStatus("Permission denied for " + automailHandle.name + ".");
-    }).catch(function (e) { setInvStatus("Refresh failed: " + e.message); });
-  }
-  function initInventoryConnection() {
-    if (!window.showOpenFilePicker) { document.getElementById("connectAutoMailBtn").title = "Direct file access isn't available in this browser — use 'Upload manually'."; return; }
-    idbGet("automailHandle").then(function (handle) {
-      if (!handle) return;
-      automailHandle = handle;
-      return handle.queryPermission({ mode: "read" }).then(function (perm) {
-        document.getElementById("refreshAutoMailBtn").hidden = perm !== "granted" && perm !== "prompt";
-        document.getElementById("connectAutoMailBtn").hidden = perm === "granted" || perm === "prompt";
-      });
-    }).catch(function () {});
+  async function refreshFromEmail() {
+    var btn = document.getElementById("refreshFromEmailBtn");
+    btn.disabled = true;
+    setInvStatus("Checking the mailbox for the latest AutoMail.xlsx…");
+    try {
+      var result = await api("POST", "/api/inventory/refresh");
+      inventoryMeta = result.meta;
+      await loadInventoryFromServer();
+    } catch (err) {
+      setInvStatus("Refresh failed: " + err.message);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   /* =========================================================================
@@ -1514,8 +1461,7 @@
     if (e.target.id === "invNext") { currentInvPage++; renderInventoryTable(); }
   });
   document.getElementById("invTable").addEventListener("click", function (e) { var tr = e.target.closest("tr[data-stone]"); if (tr) openStoneModal(tr.getAttribute("data-stone")); });
-  document.getElementById("connectAutoMailBtn").addEventListener("click", connectAutoMailFile);
-  document.getElementById("refreshAutoMailBtn").addEventListener("click", refreshAutoMail);
+  document.getElementById("refreshFromEmailBtn").addEventListener("click", refreshFromEmail);
   document.getElementById("manualInventoryUpload").addEventListener("change", function (e) { var file = e.target.files[0]; if (file) loadInventoryFromFile(file); e.target.value = ""; });
   document.getElementById("stoneModalClose").addEventListener("click", function () { document.getElementById("stoneModalOverlay").classList.remove("open"); });
   document.getElementById("stoneModalOverlay").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("open"); });
@@ -1770,7 +1716,6 @@
     populateClientDatalist();
     renderOffersTab();
     updateNotifBadge();
-    initInventoryConnection();
     startPolling();
   }
 
