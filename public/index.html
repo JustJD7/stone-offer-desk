@@ -354,17 +354,7 @@
   .seg button.on { background: var(--accent); color: var(--accent-ink); }
   .price-input { width: 150px; font-family: var(--font-body); font-size: 12.5px; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
 
-  /* ---------- Matched stones ---------- */
-  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--ink); font-size: 12px; padding: 5px 9px; border-radius: 100px; }
-  .chip-link { text-decoration: none; line-height: 1; }
-  .chip-remove { border: none; background: none; color: var(--ink-muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
-  .chip-remove:hover { color: var(--status-rejected); }
-  .match-search-input {
-    width: 100%; font-family: var(--font-body); font-size: 13px; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--ink); margin-bottom: 8px;
-  }
-  .match-results { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+  /* ---------- Matched stones (offer-form stone lookup only) ---------- */
   .match-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; background: var(--surface-2); border-radius: 8px; font-size: 12.5px; }
   .match-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -743,7 +733,6 @@
   var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [], adminUsers = [];
   var currentUser = null;
   var selectedId = null;
-  var matchQueries = {};
   var currentInvPage = 0;
   var editingClientId = null;
   var editingOfferId = null;
@@ -1221,54 +1210,7 @@
     }).join("");
   }
 
-  function matchPanelHtml(o) {
-    var matched = o.matchedStones || [];
-    var query = matchQueries[o.id] !== undefined ? matchQueries[o.id] : (o.shape || "");
-    return '<div class="thread-block">' +
-      '<div class="thread-title">Related Inventory Stones</div>' +
-      (matched.length ? '<div class="chip-row">' + matched.map(function (m) { return matchChipHtml(o.id, m); }).join("") + "</div>"
-        : '<div style="color:var(--ink-muted);font-size:12.5px;margin-bottom:10px;">No stones linked yet — search our AutoMail inventory below.</div>') +
-      '<input type="search" class="match-search-input" data-id="' + o.id + '" placeholder="Search AutoMail inventory (shape, carat, color, clarity, lab)…" value="' + esc(query) + '">' +
-      '<div class="match-results" id="matchResults-' + o.id + '"></div>' +
-    "</div>";
-  }
-  function matchChipHtml(offerId, m) {
-    return '<span class="chip">' + esc(m.shape) + " " + m.weight + "ct " + esc(m.color) + "/" + esc(m.clarity) + " · " + money(m.rate) + "/ct" +
-      (m.imageLink ? ' <a href="' + esc(m.imageLink) + '" target="_blank" rel="noopener noreferrer" class="chip-link" title="Open stone image">🖼</a>' : "") +
-      '<button type="button" class="chip-remove" data-action="unmatch" data-offer="' + offerId + '" data-stone="' + esc(m.stoneId) + '" title="Remove">×</button></span>';
-  }
-  function renderMatchResults(offerId, query) {
-    var el = document.getElementById("matchResults-" + offerId);
-    if (!el) return;
-    var q = (query || "").trim().toLowerCase();
-    var results = inventory;
-    if (q) results = inventory.filter(function (s) { return (s.shape + " " + s.color + " " + s.clarity + " " + s.lab + " " + s.stoneId).toLowerCase().indexOf(q) !== -1; });
-    results = results.slice(0, 20);
-    if (!results.length) { el.innerHTML = '<div class="empty-state" style="padding:16px;">' + (inventory.length ? "No matching stones in inventory." : "Connect the AutoMail inventory (Inventory tab) to search our stock.") + "</div>"; return; }
-    el.innerHTML = results.map(function (s) {
-      return '<div class="match-row"><span>' + esc(s.shape) + " · " + s.weight + "ct · " + esc(s.color) + "/" + esc(s.clarity) + " · " + esc(s.lab) + '</span><span>' + money(s.rate) + '/ct</span>' +
-        '<button type="button" class="btn btn-sm" data-action="attach" data-offer="' + offerId + '" data-stone="' + esc(s.stoneId) + '">Attach</button></div>';
-    }).join("");
-  }
   function toChipShape(stone) { return { stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity, rate: stone.rate, rapRate: stone.rapRate, amt: stone.amt, lab: stone.lab, imageLink: stone.imageLink }; }
-
-  async function attachStone(offerId, stoneId) {
-    var offer = offers.find(function (o) { return o.id === offerId; });
-    var stone = inventory.find(function (s) { return s.stoneId === stoneId; });
-    if (!offer || !stone) return;
-    try {
-      await patchOfferOnServer(offerId, { version: offer.version, matchedStonesAdd: toChipShape(stone) });
-      renderDetail(); renderPipelineBoard();
-    } catch (err) { if (!(await handleConflict(err))) alert("Could not attach stone: " + err.message); else renderDetail(); }
-  }
-  async function unattachStone(offerId, stoneId) {
-    var offer = offers.find(function (o) { return o.id === offerId; });
-    if (!offer) return;
-    try {
-      await patchOfferOnServer(offerId, { version: offer.version, matchedStonesRemove: stoneId });
-      renderDetail(); renderPipelineBoard();
-    } catch (err) { if (!(await handleConflict(err))) alert("Could not remove stone: " + err.message); else renderDetail(); }
-  }
 
   function renderDetail() {
     var panel = document.getElementById("detailPanel");
@@ -1319,10 +1261,7 @@
             '<div class="msg-form-controls"><div class="seg" data-role="author"><button type="button" class="on" data-value="company">Company</button><button type="button" data-value="client">Client (relayed)</button></div>' +
               '<input type="number" step="0.01" class="price-input" placeholder="' + pricePlaceholder + '"><button type="submit" class="btn btn-primary btn-sm">Post</button></div>' +
           "</form></div>" +
-        matchPanelHtml(o) +
       "</div>";
-
-    renderMatchResults(o.id, matchQueries[o.id] !== undefined ? matchQueries[o.id] : (o.shape || ""));
   }
 
   function renderOffersTab() { renderStats(); renderPipelineBoard(); renderDetail(); }
@@ -1583,17 +1522,6 @@
     }
     var segBtn = e.target.closest(".seg button");
     if (segBtn) { var seg = segBtn.closest(".seg"); seg.querySelectorAll("button").forEach(function (b) { b.classList.remove("on"); }); segBtn.classList.add("on"); return; }
-    var attachBtn = e.target.closest("[data-action='attach']");
-    if (attachBtn) { attachStone(attachBtn.getAttribute("data-offer"), attachBtn.getAttribute("data-stone")); return; }
-    var unmatchBtn = e.target.closest("[data-action='unmatch']");
-    if (unmatchBtn) { unattachStone(unmatchBtn.getAttribute("data-offer"), unmatchBtn.getAttribute("data-stone")); return; }
-  });
-  detailPanelEl.addEventListener("input", function (e) {
-    var input = e.target.closest(".match-search-input");
-    if (!input) return;
-    var offerId = input.getAttribute("data-id");
-    matchQueries[offerId] = input.value;
-    renderMatchResults(offerId, input.value);
   });
   detailPanelEl.addEventListener("submit", async function (e) {
     var form = e.target.closest(".msg-form");
