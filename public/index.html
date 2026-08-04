@@ -175,10 +175,16 @@
   .admin-badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; background: var(--accent-soft); color: var(--accent); border-radius: 100px; padding: 2px 8px; margin-left: 8px; }
 
   /* ---------- Unread blink ---------- */
-  @keyframes unreadBlink { 0%, 100% { box-shadow: 0 0 0 2px var(--status-rejected); } 50% { box-shadow: 0 0 0 2px transparent; } }
-  .pipeline-card.unread-blink { animation: unreadBlink 1.1s ease-in-out infinite; }
+  @keyframes unreadBlink {
+    0%, 100% { box-shadow: 0 0 0 2px var(--status-rejected); background: var(--surface-2); }
+    50% { box-shadow: 0 0 0 2px var(--status-rejected), 0 0 14px 3px var(--status-rejected); background: var(--status-rejected-soft); }
+  }
+  .pipeline-card.unread-blink { animation: unreadBlink 0.9s ease-in-out infinite; }
+  @keyframes unreadDotBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.15; transform: scale(1.4); } }
+  .pipeline-card.unread-blink .card-unread-dot { animation: unreadDotBlink 0.9s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) {
-    .pipeline-card.unread-blink { animation: none; box-shadow: 0 0 0 2px var(--status-rejected); }
+    .pipeline-card.unread-blink, .pipeline-card.unread-blink .card-unread-dot { animation: none; }
+    .pipeline-card.unread-blink { box-shadow: 0 0 0 2px var(--status-rejected); }
   }
 
   .pipeline-card { position: relative; }
