@@ -4,16 +4,20 @@
 create extension if not exists pgcrypto; -- for gen_random_uuid()
 
 -- ---------------------------------------------------------------------------
--- Team members: name-only attribution, no password. Anyone can pick an
--- existing name or add a new one — this is "who's using it", not access
--- control (the app itself has none).
+-- Desk users: name + password login for this app. Named "desk_users" (not
+-- "users") because this database already has a pre-existing "users" table
+-- from an older, unrelated CRM build — kept fully separate and untouched.
+-- Any signed-in user can use the app; only admins can manage other desk
+-- users (create/remove) and export offer data to Excel.
 -- ---------------------------------------------------------------------------
-create table if not exists team_members (
-  id         uuid primary key default gen_random_uuid(),
-  name       text not null,
-  created_at timestamptz not null default now()
+create table if not exists desk_users (
+  id            uuid primary key default gen_random_uuid(),
+  name          text not null,
+  password_hash text not null,
+  is_admin      boolean not null default false,
+  created_at    timestamptz not null default now()
 );
-create unique index if not exists team_members_name_lower_idx on team_members (lower(name));
+create unique index if not exists desk_users_name_lower_idx on desk_users (lower(name));
 
 -- ---------------------------------------------------------------------------
 -- Clients: trading-partner directory (bulk-imported once, then edited/added to)

@@ -6,7 +6,9 @@ import offersRouter from "./routes/offers.js";
 import clientsRouter from "./routes/clients.js";
 import inventoryRouter from "./routes/inventory.js";
 import notificationsRouter from "./routes/notifications.js";
-import teamMembersRouter from "./routes/teamMembers.js";
+import authRouter from "./routes/auth.js";
+import usersRouter from "./routes/users.js";
+import { requireAuth, requireAdmin } from "./middleware/requireAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "..", "public");
@@ -26,11 +28,12 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-app.use("/api/offers", offersRouter);
-app.use("/api/clients", clientsRouter);
-app.use("/api/inventory", inventoryRouter);
-app.use("/api/notifications", notificationsRouter);
-app.use("/api/team-members", teamMembersRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/offers", requireAuth, offersRouter);
+app.use("/api/clients", requireAuth, clientsRouter);
+app.use("/api/inventory", requireAuth, inventoryRouter);
+app.use("/api/notifications", requireAuth, notificationsRouter);
+app.use("/api/users", requireAdmin, usersRouter);
 
 app.use(express.static(publicDir, { etag: false, lastModified: false, cacheControl: false }));
 app.get("*", (_req, res) => {

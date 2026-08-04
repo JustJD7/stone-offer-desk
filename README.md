@@ -2,7 +2,7 @@
 
 Live, multi-office version of the Offer Desk prototype (`G:\CRM\prototypes\offer-dashboard.html`): the same Kanban pipeline, negotiation threads, inventory browser, and client directory, now backed by a shared Postgres database instead of one browser's local storage.
 
-There's no login — anyone with the app's URL can use it. Keep that URL and the repo's visibility in mind accordingly.
+Login required (name + password, per office/person). One admin account can create/remove other users and export all offers to Excel.
 
 ## Stack
 
@@ -19,7 +19,7 @@ See **[SETUP.md](./SETUP.md)** for the full step-by-step (Vercel + GitHub enviro
 
 ```
 npm install
-cp .env.example .env   # fill in DATABASE_URL, GMAIL_ADDRESS, GMAIL_APP_PASSWORD
+cp .env.example .env   # fill in DATABASE_URL, SESSION_SECRET, GMAIL_ADDRESS, GMAIL_APP_PASSWORD
 npm run dev             # runs the Express server with auto-restart on file changes
 ```
 

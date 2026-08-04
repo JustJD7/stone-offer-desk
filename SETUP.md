@@ -4,7 +4,7 @@
 
 - Code lives at `github.com/JustJD7/stone-offer-desk`, connected to a Vercel project.
 - Database: Neon Postgres, schema already applied.
-- No login — the app opens directly for anyone with the URL.
+- Login required — name + password, per office/person. Jaydeep's account is an admin: can create/remove other users (Admin panel, in the user menu top-right) and export all offers to Excel ("Export Offers" button, admin only).
 - AutoMail inventory can be refreshed two ways:
   - **On demand:** the "🔄 Refresh from Email" button in the Inventory tab — fetches the newest `AutoMail.xlsx` from the mailbox's "Stock List" folder right now.
   - **Automatically, every hour:** a GitHub Actions workflow (`.github/workflows/ingest-automail.yml`) runs the same fetch unattended.
@@ -19,6 +19,7 @@ I push commits to the GitHub repo; Vercel auto-deploys on every push to `main`. 
 
 **Vercel** (project → Settings → Environment Variables) — needed for the app itself, including the on-demand "Refresh from Email" button:
 - **`DATABASE_URL`** — the Neon connection string.
+- **`SESSION_SECRET`** — random string (32+ chars) that encrypts the login cookie. Already set locally in `.env`; add the same value in Vercel.
 - **`GMAIL_ADDRESS`** — the mailbox address (`jaydeep@aspeco.ae`).
 - **`GMAIL_APP_PASSWORD`** — the Gmail app password.
 

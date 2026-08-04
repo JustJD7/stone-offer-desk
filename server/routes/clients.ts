@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { sql } from "../../lib/db.js";
 import { rowToClient } from "../../lib/mappers.js";
+import { requireAdmin } from "../middleware/requireAuth.js";
 
 const router = Router();
+
+// Must come before "/:id" so "reset" isn't treated as an id.
+router.delete("/reset", requireAdmin, async (_req, res) => {
+  await sql`update offers set client_id = null`;
+  await sql`delete from clients`;
+  res.status(200).json({ ok: true });
+});
 
 router.get("/", async (req, res) => {  const rows = await sql`select * from clients order by entity_name asc`;
   res.status(200).json({ clients: rows.map(rowToClient) });

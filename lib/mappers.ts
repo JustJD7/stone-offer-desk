@@ -33,8 +33,3 @@ export function rowToStone(r: any) {
 export function rowToNotification(r: any) {
   return { id: r.id, type: r.type, offerId: r.offer_id, text: r.text, read: r.read, ts: r.created_at };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function rowToTeamMember(r: any) {
-  return { id: r.id, name: r.name, createdAt: r.created_at };
-}

@@ -1,16 +1,65 @@
 import { Router } from "express";
+import * as XLSX from "xlsx";
 import { sql } from "../../lib/db.js";
 import { rowToOffer } from "../../lib/mappers.js";
 import { resolveOrCreateClient } from "../../lib/clients.js";
+import { compareOfferPrice } from "../../lib/priceCompare.js";
+import { requireAdmin } from "../middleware/requireAuth.js";
 
 const router = Router();
 
 interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number; by?: string }
-interface MatchedStone { stoneId: string; [key: string]: unknown }
+interface MatchedStone { stoneId: string; rate?: number; rapRate?: number; amt?: number; [key: string]: unknown }
 
 router.get("/", async (_req, res) => {
   const rows = await sql`select * from offers order by created_at desc`;
   res.status(200).json({ offers: rows.map(rowToOffer) });
+});
+
+// Must come before "/:id"-style routes so "export" isn't treated as an id.
+router.get("/export", requireAdmin, async (_req, res) => {
+  const rows = await sql`
+    select o.*, c.entity_name, c.country
+    from offers o left join clients c on c.id = o.client_id
+    order by o.created_at desc
+  `;
+
+  const header = [
+    "Client", "Country", "Type", "Status", "Priority", "Shape", "Carat", "Color", "Clarity", "Cut", "Certificate",
+    "Channel", "Contact", "Price Type", "Price (as entered)", "Matched Stone ID",
+    "Our Discount %", "Our Rate/ct", "Our Total", "Client Discount %", "Client Rate/ct", "Client Total",
+    "Diff Rate/ct", "Diff Total", "Favorable to Us", "Created By", "Created At", "Notes"
+  ];
+
+  const body = rows.map((r: any) => {
+    const cmp = compareOfferPrice({ type: r.type, priceType: r.price_type, price: Number(r.price), carat: r.carat, matchedStones: r.matched_stones });
+    return [
+      r.entity_name || "", r.country || "", r.type, r.status, r.priority ? "Yes" : "No",
+      r.shape || "", r.carat || "", r.color || "", r.clarity || "", r.cut || "", r.cert || "",
+      r.channel || "", r.contact || "", r.price_type, Number(r.price),
+      cmp.stoneId || "",
+      cmp.ourDiscountPct != null ? Number(cmp.ourDiscountPct.toFixed(2)) : "",
+      cmp.ourRate != null ? Number(cmp.ourRate.toFixed(2)) : "",
+      cmp.ourTotal != null ? Number(cmp.ourTotal.toFixed(2)) : "",
+      cmp.clientDiscountPct != null ? Number(cmp.clientDiscountPct.toFixed(2)) : "",
+      cmp.clientRate != null ? Number(cmp.clientRate.toFixed(2)) : "",
+      cmp.clientTotal != null ? Number(cmp.clientTotal.toFixed(2)) : "",
+      cmp.diffRate != null ? Number(cmp.diffRate.toFixed(2)) : "",
+      cmp.diffTotal != null ? Number(cmp.diffTotal.toFixed(2)) : "",
+      cmp.favorable == null ? "" : (cmp.favorable ? "Yes" : "No"),
+      r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || ""
+    ];
+  });
+
+  const sheet = XLSX.utils.aoa_to_sheet([header, ...body]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheet, "Offers");
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  res.status(200)
+    .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    .set("Content-Disposition", `attachment; filename="offers-export-${new Date().toISOString().slice(0, 10)}.xlsx"`)
+    .send(buffer);
 });
 
 router.post("/", async (req, res) => {
@@ -24,7 +73,7 @@ router.post("/", async (req, res) => {
   }
 
   const clientId = await resolveOrCreateClient(clientName);
-  const createdByOffice = String(body.createdByOffice ?? "").trim() || "shared";
+  const createdByOffice = req.user!.name;
   const createdAt = new Date().toISOString();
   const shape = String(body.shape ?? ""), carat = String(body.carat ?? ""), color = String(body.color ?? ""), clarity = String(body.clarity ?? "");
   const initialMessage: ThreadMessage = {
@@ -62,6 +111,9 @@ router.patch("/:id", async (req, res) => {
   const body = (req.body ?? {}) as {
     version?: number; status?: string; priority?: boolean; markRead?: boolean;
     appendMessage?: ThreadMessage; matchedStonesAdd?: MatchedStone; matchedStonesRemove?: string;
+    clientName?: string; contact?: string; channel?: string; type?: string;
+    shape?: string; carat?: string; color?: string; clarity?: string; cut?: string; cert?: string;
+    priceType?: string; price?: number; notes?: string;
   };
 
   const current = await sql`select * from offers where id = ${id}`;
@@ -76,8 +128,10 @@ router.patch("/:id", async (req, res) => {
   let thread = (row.thread as ThreadMessage[]) ?? [];
   let unread = row.unread as boolean;
   if (body.appendMessage) {
-    thread = [...thread, body.appendMessage];
-    if (body.appendMessage.author === "client") unread = true;
+    const entry = { ...body.appendMessage };
+    if (entry.author === "company") entry.by = req.user!.name;
+    thread = [...thread, entry];
+    if (entry.author === "client") unread = true;
   }
 
   let matchedStones = (row.matched_stones as MatchedStone[]) ?? [];
@@ -94,8 +148,28 @@ router.patch("/:id", async (req, res) => {
   const priority = body.priority ?? row.priority;
   if (body.markRead) unread = false;
 
+  let clientId = row.client_id;
+  if (body.clientName !== undefined && body.clientName.trim()) {
+    clientId = await resolveOrCreateClient(body.clientName.trim());
+  }
+  const type = body.type !== undefined ? body.type : row.type;
+  const priceType = body.priceType !== undefined ? body.priceType : row.price_type;
+  const price = body.price !== undefined ? Number(body.price) || 0 : row.price;
+  const shape = body.shape !== undefined ? body.shape : row.shape;
+  const carat = body.carat !== undefined ? body.carat : row.carat;
+  const color = body.color !== undefined ? body.color : row.color;
+  const clarity = body.clarity !== undefined ? body.clarity : row.clarity;
+  const cut = body.cut !== undefined ? body.cut : row.cut;
+  const cert = body.cert !== undefined ? body.cert : row.cert;
+  const contact = body.contact !== undefined ? body.contact : row.contact;
+  const channel = body.channel !== undefined ? body.channel : row.channel;
+  const notes = body.notes !== undefined ? body.notes : row.notes;
+
   const updated = await sql`
     update offers set
+      client_id = ${clientId}, type = ${type}, price_type = ${priceType}, price = ${price},
+      shape = ${shape}, carat = ${carat}, color = ${color}, clarity = ${clarity}, cut = ${cut}, cert = ${cert},
+      contact = ${contact}, channel = ${channel}, notes = ${notes},
       status = ${status}, priority = ${priority}, thread = ${JSON.stringify(thread)},
       matched_stones = ${JSON.stringify(matchedStones)}, unread = ${unread},
       version = version + 1, updated_at = now()

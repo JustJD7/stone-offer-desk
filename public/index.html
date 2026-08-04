@@ -144,20 +144,42 @@
   .notif-item-time { font-size: 11px; color: var(--ink-muted); }
   .notif-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--status-rejected); margin-right: 6px; }
 
-  /* ---------- Acting-as name picker ---------- */
-  .actor-wrap { position: relative; }
-  .actor-btn { font-size: 13px; font-weight: 600; padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
-  .actor-dropdown {
-    position: absolute; top: calc(100% + 8px); right: 0; width: 220px; max-height: 320px; overflow-y: auto;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 70;
+  /* ---------- Login screen ---------- */
+  .login-screen { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+  .login-screen[hidden] { display: none; }
+  .login-card { width: 340px; max-width: 90vw; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; box-shadow: var(--shadow); }
+  .login-card h2 { margin: 0 0 4px; font-size: 19px; }
+  .login-card p { margin: 0 0 20px; font-size: 13px; color: var(--ink-muted); }
+  .login-card .field { margin-bottom: 14px; }
+  .login-card label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; }
+  .login-card input { width: 100%; }
+  .login-error { font-size: 12.5px; color: var(--status-rejected); margin-bottom: 12px; min-height: 1em; }
+  .login-card button[type="submit"] { width: 100%; margin-top: 4px; }
+
+  /* ---------- Signed-in user menu ---------- */
+  .user-wrap { position: relative; }
+  .user-btn { font-size: 13px; font-weight: 600; padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
+  .user-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: 200px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 70; overflow: hidden;
   }
-  .actor-dropdown[hidden] { display: none; }
-  .actor-dropdown-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
-  .actor-item { display: block; width: 100%; text-align: left; padding: 9px 14px; border: none; background: none; border-bottom: 1px solid var(--border); cursor: pointer; font-family: inherit; color: inherit; font-size: 13px; }
-  .actor-item:hover { background: var(--surface-2); }
-  .actor-item.current { background: var(--accent-soft); font-weight: 700; }
-  .actor-add-row { display: flex; gap: 6px; padding: 10px 14px; }
-  .actor-add-row input { flex: 1; min-width: 0; }
+  .user-dropdown[hidden] { display: none; }
+  .user-dropdown-item { display: block; width: 100%; text-align: left; padding: 10px 14px; border: none; background: none; cursor: pointer; font-family: inherit; color: inherit; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .user-dropdown-item:last-child { border-bottom: none; }
+  .user-dropdown-item:hover { background: var(--surface-2); }
+  .user-dropdown-item.danger { color: var(--status-rejected); }
+
+  /* ---------- Admin panel ---------- */
+  .admin-user-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .admin-user-row:last-child { border-bottom: none; }
+  .admin-badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; background: var(--accent-soft); color: var(--accent); border-radius: 100px; padding: 2px 8px; margin-left: 8px; }
+
+  /* ---------- Unread blink ---------- */
+  @keyframes unreadBlink { 0%, 100% { box-shadow: 0 0 0 2px var(--status-rejected); } 50% { box-shadow: 0 0 0 2px transparent; } }
+  .pipeline-card.unread-blink { animation: unreadBlink 1.1s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .pipeline-card.unread-blink { animation: none; box-shadow: 0 0 0 2px var(--status-rejected); }
+  }
 
   .pipeline-card { position: relative; }
   .card-unread-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--status-rejected); box-shadow: 0 0 0 2px var(--surface-2); }
@@ -401,7 +423,18 @@
 </head>
 <body>
 
-<div id="appRoot">
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <h2>Stone Offer Desk</h2>
+    <p>Sign in to continue.</p>
+    <div class="login-error" id="loginError"></div>
+    <div class="field"><label for="login-name">Name</label><input id="login-name" autocomplete="username" required></div>
+    <div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div>
+    <button type="submit" class="btn btn-primary">Sign in</button>
+  </form>
+</div>
+
+<div id="appRoot" hidden>
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -417,15 +450,12 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <div class="actor-wrap">
-          <button class="btn btn-ghost actor-btn" id="actorBtn" type="button">👤 <span id="actorBtnLabel">Who's this?</span></button>
-          <div class="actor-dropdown" id="actorDropdown" hidden>
-            <div class="actor-dropdown-head">Acting as</div>
-            <div id="actorList"></div>
-            <form class="actor-add-row" id="actorAddForm">
-              <input type="text" id="actorAddInput" placeholder="Add your name…" maxlength="60" autocomplete="off" />
-              <button type="submit" class="btn btn-sm btn-primary">Add</button>
-            </form>
+        <button class="btn btn-ghost" id="exportOffersBtn" type="button" hidden>⬇ Export Offers</button>
+        <div class="user-wrap">
+          <button class="btn btn-ghost user-btn" id="userBtn" type="button">👤 <span id="userBtnLabel"></span></button>
+          <div class="user-dropdown" id="userDropdown" hidden>
+            <button type="button" class="user-dropdown-item" id="adminPanelBtn" hidden>Admin panel</button>
+            <button type="button" class="user-dropdown-item danger" id="logoutBtn">Log out</button>
           </div>
         </div>
         <div class="notif-wrap">
@@ -522,6 +552,7 @@
           <div class="conn-actions">
             <label class="btn btn-sm btn-file">Import Client List (Excel)<input type="file" id="clientImportUpload" accept=".xlsx"></label>
             <button class="btn btn-sm btn-primary" id="addClientBtn" type="button">+ Add Client</button>
+            <button class="btn btn-sm btn-danger" id="resetClientsBtn" type="button" hidden>Reset All Clients</button>
           </div>
         </div>
       </div>
@@ -550,7 +581,10 @@
   <div class="drawer-overlay" id="drawerOverlay">
     <div class="drawer">
       <div class="drawer-head">
-        <button type="button" class="btn btn-ghost btn-sm btn-danger" id="deleteOfferBtn">Delete Offer</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="editOfferBtn">Edit Offer</button>
+          <button type="button" class="btn btn-ghost btn-sm btn-danger" id="deleteOfferBtn">Delete Offer</button>
+        </div>
         <button type="button" class="btn btn-ghost btn-sm" id="drawerCloseBtn">Close ✕</button>
       </div>
       <div class="detail-panel" id="detailPanel"></div>
@@ -607,7 +641,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" id="modalCancel">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save offer</button>
+          <button type="submit" class="btn btn-primary" id="offerFormSubmitBtn">Save offer</button>
         </div>
       </form>
     </div>
@@ -630,6 +664,24 @@
           <button type="submit" class="btn btn-primary" id="clientModalSave">Add client</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adminModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Admin — manage users</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="adminModalClose" aria-label="Close">Close</button>
+      </div>
+      <div class="modal-body" style="grid-template-columns:1fr;">
+        <div id="adminUserList"></div>
+        <form id="adminAddUserForm" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+          <div class="field wide"><label for="au-name">Name</label><input id="au-name" required autocomplete="off"></div>
+          <div class="field"><label for="au-password">Password</label><input id="au-password" type="password" minlength="6" required autocomplete="new-password"></div>
+          <div class="checkbox-row"><input type="checkbox" id="au-admin"><label for="au-admin">Admin</label></div>
+          <div class="field wide"><button type="submit" class="btn btn-primary" style="width:100%;">Add user</button></div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -670,7 +722,10 @@
     if (body !== undefined) { opts.headers = { "Content-Type": "application/json" }; opts.body = JSON.stringify(body); }
     return fetch(path, opts).then(function (res) {
       return res.json().catch(function () { return null; }).then(function (data) {
-        if (!res.ok) { var err = new Error((data && data.error) || ("Request failed: " + res.status)); err.status = res.status; err.data = data; throw err; }
+        if (!res.ok) {
+          if (res.status === 401 && path !== "/api/auth/login") showLogin();
+          var err = new Error((data && data.error) || ("Request failed: " + res.status)); err.status = res.status; err.data = data; throw err;
+        }
         return data;
       });
     });
@@ -679,11 +734,13 @@
   /* =========================================================================
      STATE
   ========================================================================= */
-  var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [], teamMembers = [];
+  var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [], adminUsers = [];
+  var currentUser = null;
   var selectedId = null;
   var matchQueries = {};
   var currentInvPage = 0;
   var editingClientId = null;
+  var editingOfferId = null;
   var linkedStoneForNewOffer = null;
   var pollTimer = null;
 
@@ -1054,30 +1111,31 @@
   }
 
   /* =========================================================================
-     ACTING-AS NAME — attribution only, no login/access-control
+     AUTH — login/logout, current user, admin panel
   ========================================================================= */
-  function currentActorName() { return localStorage.getItem("actorName") || ""; }
-  function setCurrentActorName(name) { localStorage.setItem("actorName", name); updateActorUI(); }
-  async function loadTeamMembersFromServer() {
-    var data = await api("GET", "/api/team-members");
-    teamMembers = data.teamMembers;
+  function showLogin() {
+    currentUser = null;
+    document.getElementById("appRoot").hidden = true;
+    document.getElementById("loginScreen").hidden = false;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   }
-  async function addTeamMember(name) {
-    var data = await api("POST", "/api/team-members", { name: name });
-    if (!teamMembers.some(function (t) { return t.name.toLowerCase() === data.teamMember.name.toLowerCase(); })) {
-      teamMembers.push(data.teamMember);
-      teamMembers.sort(function (a, b) { return a.name.localeCompare(b.name); });
-    }
-    return data.teamMember;
+  function showApp() {
+    document.getElementById("loginScreen").hidden = true;
+    document.getElementById("appRoot").hidden = false;
+    document.getElementById("userBtnLabel").textContent = currentUser.name;
+    document.getElementById("adminPanelBtn").hidden = !currentUser.isAdmin;
+    document.getElementById("exportOffersBtn").hidden = !currentUser.isAdmin;
+    document.getElementById("resetClientsBtn").hidden = !currentUser.isAdmin;
   }
-  function updateActorUI() {
-    var name = currentActorName();
-    document.getElementById("actorBtnLabel").textContent = name || "Who's this?";
-    var list = document.getElementById("actorList");
-    if (!teamMembers.length) { list.innerHTML = '<div class="actor-item" style="cursor:default;color:var(--ink-muted);">No names yet — add one below</div>'; return; }
-    list.innerHTML = teamMembers.map(function (t) {
-      return '<button type="button" class="actor-item' + (t.name === name ? " current" : "") + '" data-name="' + esc(t.name) + '">' + esc(t.name) + "</button>";
-    }).join("");
+  async function loadAdminUsers() {
+    var data = await api("GET", "/api/users");
+    adminUsers = data.users;
+  }
+  function renderAdminUserList() {
+    document.getElementById("adminUserList").innerHTML = adminUsers.map(function (u) {
+      return '<div class="admin-user-row"><span>' + esc(u.name) + (u.isAdmin ? '<span class="admin-badge">Admin</span>' : "") + '</span>' +
+        '<button type="button" class="btn btn-sm btn-ghost btn-danger" data-action="removeUser" data-id="' + u.id + '">Remove</button></div>';
+    }).join("") || '<div class="hint">No users yet.</div>';
   }
 
   /* =========================================================================
@@ -1128,7 +1186,7 @@
   function cardHtml(o) {
     var client = clientById(o.clientId);
     var name = client ? client.entityName : "(unknown client)";
-    return '<div class="pipeline-card" draggable="true" data-id="' + o.id + '">' +
+    return '<div class="pipeline-card' + (o.unread ? " unread-blink" : "") + '" draggable="true" data-id="' + o.id + '">' +
       (o.unread ? '<span class="card-unread-dot" title="Unread activity"></span>' : "") +
       '<div class="pipeline-card-top"><span class="pipeline-card-client">' + esc(name) + '</span>' + (o.priority ? '<span class="pill pill-priority">High</span>' : "") + "</div>" +
       '<div class="pipeline-card-spec">' + esc(o.shape) + " · " + esc(o.carat) + "ct · " + esc(o.color) + "/" + esc(o.clarity) + "</div>" +
@@ -1544,7 +1602,6 @@
     if (!message) return;
     var entry = { author: authorBtn ? authorBtn.getAttribute("data-value") : "company", message: message, ts: new Date().toISOString() };
     if (priceInput.value !== "") entry.price = Number(priceInput.value);
-    if (entry.author === "company" && currentActorName()) entry.by = currentActorName();
     try {
       await patchOfferOnServer(offer.id, { version: offer.version, appendMessage: entry });
       renderOffersTab();
@@ -1691,15 +1748,47 @@
     document.getElementById("f-cert").value = (stone.lab || "") + (stone.reportNo ? " " + stone.reportNo : "");
   });
 
-  function openModal() { overlay.classList.add("open"); document.getElementById("f-client").focus(); }
+  function openModal(offerToEdit) {
+    editingOfferId = offerToEdit ? offerToEdit.id : null;
+    document.getElementById("modalTitle").textContent = offerToEdit ? "Edit offer" : "Log a new client offer";
+    document.getElementById("offerFormSubmitBtn").textContent = offerToEdit ? "Save changes" : "Save offer";
+    if (offerToEdit) {
+      var client = clientById(offerToEdit.clientId);
+      document.querySelector("input[name='offerType'][value='" + offerToEdit.type + "']").checked = true;
+      document.getElementById("f-client").value = client ? client.entityName : "";
+      document.getElementById("f-contact").value = offerToEdit.contact || "";
+      document.getElementById("f-channel").value = offerToEdit.channel || "";
+      document.getElementById("f-shape").value = offerToEdit.shape || "";
+      document.getElementById("f-carat").value = offerToEdit.carat || "";
+      document.getElementById("f-color").value = offerToEdit.color || "";
+      document.getElementById("f-clarity").value = offerToEdit.clarity || "";
+      document.getElementById("f-cut").value = offerToEdit.cut || "";
+      document.getElementById("f-cert").value = offerToEdit.cert || "";
+      document.getElementById("f-priceType").value = offerToEdit.priceType;
+      document.getElementById("f-price").value = offerToEdit.price;
+      document.getElementById("f-priority").checked = !!offerToEdit.priority;
+      document.getElementById("f-notes").value = offerToEdit.notes || "";
+      linkedStoneForNewOffer = null;
+      syncPriceLabel();
+    }
+    overlay.classList.add("open");
+    document.getElementById("f-client").focus();
+  }
   function closeModal() {
     overlay.classList.remove("open");
     document.getElementById("offerForm").reset();
     document.getElementById("f-stoneLookupResults").innerHTML = "";
     linkedStoneForNewOffer = null;
+    editingOfferId = null;
+    document.getElementById("modalTitle").textContent = "Log a new client offer";
+    document.getElementById("offerFormSubmitBtn").textContent = "Save offer";
     syncPriceLabel();
   }
-  document.getElementById("newOfferBtn").addEventListener("click", openModal);
+  document.getElementById("newOfferBtn").addEventListener("click", function () { openModal(); });
+  document.getElementById("editOfferBtn").addEventListener("click", function () {
+    var offer = offers.find(function (o) { return o.id === selectedId; });
+    if (offer) openModal(offer);
+  });
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.getElementById("modalCancel").addEventListener("click", closeModal);
   overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
@@ -1710,13 +1799,13 @@
     if (document.getElementById("stoneModalOverlay").classList.contains("open")) document.getElementById("stoneModalOverlay").classList.remove("open");
     if (document.getElementById("drawerOverlay").classList.contains("open")) closeDetailDrawer();
     if (!document.getElementById("notifDropdown").hidden) document.getElementById("notifDropdown").hidden = true;
-    if (!document.getElementById("actorDropdown").hidden) document.getElementById("actorDropdown").hidden = true;
+    if (!document.getElementById("userDropdown").hidden) document.getElementById("userDropdown").hidden = true;
   });
 
   document.getElementById("offerForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     var type = document.querySelector("input[name='offerType']:checked").value;
-    var payload = {
+    var fields = {
       clientName: document.getElementById("f-client").value,
       contact: document.getElementById("f-contact").value.trim(),
       channel: document.getElementById("f-channel").value,
@@ -1730,12 +1819,19 @@
       priceType: document.getElementById("f-priceType").value,
       price: Number(document.getElementById("f-price").value) || 0,
       priority: document.getElementById("f-priority").checked,
-      notes: document.getElementById("f-notes").value.trim(),
-      matchedStones: linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : [],
-      createdByOffice: currentActorName() || "shared"
+      notes: document.getElementById("f-notes").value.trim()
     };
     try {
-      var offer = await createOfferOnServer(payload);
+      var offer;
+      if (editingOfferId) {
+        var existing = offers.find(function (o) { return o.id === editingOfferId; });
+        fields.version = existing.version;
+        if (linkedStoneForNewOffer) fields.matchedStonesAdd = toChipShape(linkedStoneForNewOffer);
+        offer = await patchOfferOnServer(editingOfferId, fields);
+      } else {
+        fields.matchedStones = linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : [];
+        offer = await createOfferOnServer(fields);
+      }
       await loadClientsFromServer();
       populateClientDatalist();
       closeModal();
@@ -1743,7 +1839,7 @@
       renderOffersTab();
       await openDetailDrawer(offer.id);
     } catch (err) {
-      alert("Could not save offer: " + err.message);
+      if (!(await handleConflict(err))) alert("Could not save offer: " + err.message);
     }
   });
 
@@ -1790,32 +1886,86 @@
   document.addEventListener("click", function (e) {
     var dd = document.getElementById("notifDropdown");
     if (!dd.hidden && !e.target.closest(".notif-wrap")) dd.hidden = true;
-    var ad = document.getElementById("actorDropdown");
-    if (!ad.hidden && !e.target.closest(".actor-wrap")) ad.hidden = true;
+    var ud = document.getElementById("userDropdown");
+    if (!ud.hidden && !e.target.closest(".user-wrap")) ud.hidden = true;
   });
-  document.getElementById("actorBtn").addEventListener("click", function (e) {
+  document.getElementById("userBtn").addEventListener("click", function (e) {
     e.stopPropagation();
-    var dd = document.getElementById("actorDropdown");
+    var dd = document.getElementById("userDropdown");
     dd.hidden = !dd.hidden;
-    if (!dd.hidden) document.getElementById("actorAddInput").focus();
   });
-  document.getElementById("actorList").addEventListener("click", function (e) {
-    var item = e.target.closest(".actor-item[data-name]");
-    if (!item) return;
-    setCurrentActorName(item.getAttribute("data-name"));
-    document.getElementById("actorDropdown").hidden = true;
+  document.getElementById("logoutBtn").addEventListener("click", async function () {
+    document.getElementById("userDropdown").hidden = true;
+    try { await api("POST", "/api/auth/logout"); } catch (err) { /* ignore */ }
+    showLogin();
   });
-  document.getElementById("actorAddForm").addEventListener("submit", async function (e) {
+
+  /* =========================================================================
+     EVENTS — Admin panel (users + export)
+  ========================================================================= */
+  var adminModalOverlay = document.getElementById("adminModalOverlay");
+  document.getElementById("adminPanelBtn").addEventListener("click", async function () {
+    document.getElementById("userDropdown").hidden = true;
+    try { await loadAdminUsers(); renderAdminUserList(); adminModalOverlay.classList.add("open"); }
+    catch (err) { alert("Could not load users: " + err.message); }
+  });
+  document.getElementById("adminModalClose").addEventListener("click", function () { adminModalOverlay.classList.remove("open"); });
+  adminModalOverlay.addEventListener("click", function (e) { if (e.target === adminModalOverlay) adminModalOverlay.classList.remove("open"); });
+  document.getElementById("adminAddUserForm").addEventListener("submit", async function (e) {
     e.preventDefault();
-    var input = document.getElementById("actorAddInput");
-    var name = input.value.trim();
-    if (!name) return;
+    var name = document.getElementById("au-name").value.trim();
+    var password = document.getElementById("au-password").value;
+    var isAdmin = document.getElementById("au-admin").checked;
     try {
-      var member = await addTeamMember(name);
-      setCurrentActorName(member.name);
-      input.value = "";
-      document.getElementById("actorDropdown").hidden = true;
-    } catch (err) { alert("Could not add name: " + err.message); }
+      await api("POST", "/api/users", { name: name, password: password, isAdmin: isAdmin });
+      await loadAdminUsers();
+      renderAdminUserList();
+      document.getElementById("adminAddUserForm").reset();
+    } catch (err) { alert("Could not add user: " + err.message); }
+  });
+  document.getElementById("adminUserList").addEventListener("click", async function (e) {
+    var btn = e.target.closest("[data-action='removeUser']");
+    if (!btn) return;
+    if (!window.confirm("Remove this user? They won't be able to sign in anymore.")) return;
+    try {
+      await api("DELETE", "/api/users/" + btn.getAttribute("data-id"));
+      await loadAdminUsers();
+      renderAdminUserList();
+    } catch (err) { alert("Could not remove user: " + err.message); }
+  });
+  document.getElementById("exportOffersBtn").addEventListener("click", function () {
+    window.location.href = "/api/offers/export";
+  });
+  document.getElementById("resetClientsBtn").addEventListener("click", async function () {
+    if (!window.confirm("Remove ALL clients from the directory? Offers will keep their history but lose their client link. This cannot be undone.")) return;
+    try {
+      await api("DELETE", "/api/clients/reset");
+      await loadClientsFromServer();
+      await loadOffersFromServer();
+      populateClientDatalist();
+      renderClients();
+      renderOffersTab();
+    } catch (err) { alert("Could not reset clients: " + err.message); }
+  });
+
+  /* =========================================================================
+     EVENTS — Login
+  ========================================================================= */
+  document.getElementById("loginForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var name = document.getElementById("login-name").value.trim();
+    var password = document.getElementById("login-password").value;
+    var errEl = document.getElementById("loginError");
+    errEl.textContent = "";
+    try {
+      var data = await api("POST", "/api/auth/login", { name: name, password: password });
+      currentUser = data.user;
+      document.getElementById("login-password").value = "";
+      showApp();
+      await bootApp();
+    } catch (err) {
+      errEl.textContent = err.message || "Could not sign in.";
+    }
   });
   document.getElementById("notifMarkAllBtn").addEventListener("click", async function (e) {
     e.stopPropagation();
@@ -1837,25 +1987,69 @@
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(function () {
+      var prevUnread = notifications.filter(function (n) { return !n.read; }).length;
       Promise.all([loadOffersFromServer(), loadNotificationsFromServer()]).then(function () {
+        var nowUnread = notifications.filter(function (n) { return !n.read; }).length;
+        if (nowUnread > prevUnread) playNotifySound();
         renderStats(); renderPipelineBoard(); updateNotifBadge();
       }).catch(function () { /* transient network hiccup — next tick retries */ });
     }, POLL_INTERVAL_MS);
   }
 
   async function bootApp() {
-    await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer(), loadTeamMembersFromServer()]);
+    await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer()]);
     populateClientDatalist();
     renderOffersTab();
     updateNotifBadge();
-    updateActorUI();
     startPolling();
   }
 
   /* =========================================================================
-     INIT
+     NOTIFICATION SOUND — a short two-tone chime via Web Audio, no asset file
   ========================================================================= */
-  bootApp();
+  var audioCtx = null;
+  function ensureAudioCtx() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { /* unsupported */ }
+    } else if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+  document.addEventListener("click", function () { ensureAudioCtx(); }, { once: true });
+  function playNotifySound() {
+    var ctx = ensureAudioCtx();
+    if (!ctx) return;
+    var t = ctx.currentTime;
+    [[0, 880], [0.14, 1180]].forEach(function (pair) {
+      var offset = pair[0], freq = pair[1];
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + offset);
+      gain.gain.exponentialRampToValueAtTime(0.18, t + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.13);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.15);
+    });
+  }
+
+  /* =========================================================================
+     INIT — check the session first; show login if not signed in
+  ========================================================================= */
+  async function initAuth() {
+    try {
+      var data = await api("GET", "/api/auth/me");
+      currentUser = data.user;
+      showApp();
+      await bootApp();
+    } catch (err) {
+      showLogin();
+    }
+  }
+  initAuth();
 })();
 </script>
 </body>

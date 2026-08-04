@@ -16,6 +16,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "imapflow": "^1.6.5",
+    "iron-session": "^8.0.4",
     "mailparser": "^3.9.14",
     "pg": "^8.22.0",
     "tsx": "^4.19.2",
