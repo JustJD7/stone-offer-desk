@@ -5,7 +5,7 @@ import { resolveOrCreateClient } from "../../lib/clients.js";
 
 const router = Router();
 
-interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number }
+interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number; by?: string }
 interface MatchedStone { stoneId: string; [key: string]: unknown }
 
 router.get("/", async (_req, res) => {
@@ -24,6 +24,7 @@ router.post("/", async (req, res) => {
   }
 
   const clientId = await resolveOrCreateClient(clientName);
+  const createdByOffice = String(body.createdByOffice ?? "").trim() || "shared";
   const createdAt = new Date().toISOString();
   const shape = String(body.shape ?? ""), carat = String(body.carat ?? ""), color = String(body.color ?? ""), clarity = String(body.clarity ?? "");
   const initialMessage: ThreadMessage = {
@@ -40,7 +41,7 @@ router.post("/", async (req, res) => {
       ${clientId}, ${String(body.contact ?? "")}, ${String(body.channel ?? "")}, ${type},
       ${shape}, ${carat}, ${color}, ${clarity}, ${String(body.cut ?? "")}, ${String(body.cert ?? "")},
       ${priceType}, ${Number(body.price) || 0}, ${!!body.priority}, 'new', ${String(body.notes ?? "")},
-      ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, 'shared'
+      ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, ${createdByOffice}
     )
     returning *
   `;

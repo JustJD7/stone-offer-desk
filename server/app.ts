@@ -6,6 +6,7 @@ import offersRouter from "./routes/offers.js";
 import clientsRouter from "./routes/clients.js";
 import inventoryRouter from "./routes/inventory.js";
 import notificationsRouter from "./routes/notifications.js";
+import teamMembersRouter from "./routes/teamMembers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "..", "public");
@@ -29,6 +30,7 @@ app.use("/api/offers", offersRouter);
 app.use("/api/clients", clientsRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/team-members", teamMembersRouter);
 
 app.use(express.static(publicDir, { etag: false, lastModified: false, cacheControl: false }));
 app.get("*", (_req, res) => {

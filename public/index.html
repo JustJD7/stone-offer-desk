@@ -144,6 +144,21 @@
   .notif-item-time { font-size: 11px; color: var(--ink-muted); }
   .notif-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--status-rejected); margin-right: 6px; }
 
+  /* ---------- Acting-as name picker ---------- */
+  .actor-wrap { position: relative; }
+  .actor-btn { font-size: 13px; font-weight: 600; padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
+  .actor-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; width: 220px; max-height: 320px; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 70;
+  }
+  .actor-dropdown[hidden] { display: none; }
+  .actor-dropdown-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .actor-item { display: block; width: 100%; text-align: left; padding: 9px 14px; border: none; background: none; border-bottom: 1px solid var(--border); cursor: pointer; font-family: inherit; color: inherit; font-size: 13px; }
+  .actor-item:hover { background: var(--surface-2); }
+  .actor-item.current { background: var(--accent-soft); font-weight: 700; }
+  .actor-add-row { display: flex; gap: 6px; padding: 10px 14px; }
+  .actor-add-row input { flex: 1; min-width: 0; }
+
   .pipeline-card { position: relative; }
   .card-unread-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--status-rejected); box-shadow: 0 0 0 2px var(--surface-2); }
 
@@ -402,6 +417,17 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
+        <div class="actor-wrap">
+          <button class="btn btn-ghost actor-btn" id="actorBtn" type="button">👤 <span id="actorBtnLabel">Who's this?</span></button>
+          <div class="actor-dropdown" id="actorDropdown" hidden>
+            <div class="actor-dropdown-head">Acting as</div>
+            <div id="actorList"></div>
+            <form class="actor-add-row" id="actorAddForm">
+              <input type="text" id="actorAddInput" placeholder="Add your name…" maxlength="60" autocomplete="off" />
+              <button type="submit" class="btn btn-sm btn-primary">Add</button>
+            </form>
+          </div>
+        </div>
         <div class="notif-wrap">
           <button class="btn btn-ghost notif-bell" id="notifBellBtn" type="button" aria-label="Notifications">🔔<span class="notif-badge" id="notifBadge" hidden>0</span></button>
           <div class="notif-dropdown" id="notifDropdown" hidden>
@@ -653,7 +679,7 @@
   /* =========================================================================
      STATE
   ========================================================================= */
-  var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [];
+  var offers = [], clients = [], inventory = [], inventoryMeta = null, notifications = [], teamMembers = [];
   var selectedId = null;
   var matchQueries = {};
   var currentInvPage = 0;
@@ -1028,6 +1054,33 @@
   }
 
   /* =========================================================================
+     ACTING-AS NAME — attribution only, no login/access-control
+  ========================================================================= */
+  function currentActorName() { return localStorage.getItem("actorName") || ""; }
+  function setCurrentActorName(name) { localStorage.setItem("actorName", name); updateActorUI(); }
+  async function loadTeamMembersFromServer() {
+    var data = await api("GET", "/api/team-members");
+    teamMembers = data.teamMembers;
+  }
+  async function addTeamMember(name) {
+    var data = await api("POST", "/api/team-members", { name: name });
+    if (!teamMembers.some(function (t) { return t.name.toLowerCase() === data.teamMember.name.toLowerCase(); })) {
+      teamMembers.push(data.teamMember);
+      teamMembers.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    }
+    return data.teamMember;
+  }
+  function updateActorUI() {
+    var name = currentActorName();
+    document.getElementById("actorBtnLabel").textContent = name || "Who's this?";
+    var list = document.getElementById("actorList");
+    if (!teamMembers.length) { list.innerHTML = '<div class="actor-item" style="cursor:default;color:var(--ink-muted);">No names yet — add one below</div>'; return; }
+    list.innerHTML = teamMembers.map(function (t) {
+      return '<button type="button" class="actor-item' + (t.name === name ? " current" : "") + '" data-name="' + esc(t.name) + '">' + esc(t.name) + "</button>";
+    }).join("");
+  }
+
+  /* =========================================================================
      OFFERS PIPELINE — rendering (unchanged from the prototype)
   ========================================================================= */
   function renderStats() {
@@ -1174,7 +1227,8 @@
       .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
 
     var thread = (o.thread || []).map(function (m) {
-      return '<div class="msg msg-' + m.author + '"><div class="msg-meta"><span>' + (m.author === "company" ? "Company" : "Client") + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
+      var who = m.author === "company" ? ("Company" + (m.by ? " (" + esc(m.by) + ")" : "")) : "Client";
+      return '<div class="msg msg-' + m.author + '"><div class="msg-meta"><span>' + who + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
         "<div>" + esc(m.message) + "</div>" +
         (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
     }).join("");
@@ -1490,6 +1544,7 @@
     if (!message) return;
     var entry = { author: authorBtn ? authorBtn.getAttribute("data-value") : "company", message: message, ts: new Date().toISOString() };
     if (priceInput.value !== "") entry.price = Number(priceInput.value);
+    if (entry.author === "company" && currentActorName()) entry.by = currentActorName();
     try {
       await patchOfferOnServer(offer.id, { version: offer.version, appendMessage: entry });
       renderOffersTab();
@@ -1655,6 +1710,7 @@
     if (document.getElementById("stoneModalOverlay").classList.contains("open")) document.getElementById("stoneModalOverlay").classList.remove("open");
     if (document.getElementById("drawerOverlay").classList.contains("open")) closeDetailDrawer();
     if (!document.getElementById("notifDropdown").hidden) document.getElementById("notifDropdown").hidden = true;
+    if (!document.getElementById("actorDropdown").hidden) document.getElementById("actorDropdown").hidden = true;
   });
 
   document.getElementById("offerForm").addEventListener("submit", async function (e) {
@@ -1675,7 +1731,8 @@
       price: Number(document.getElementById("f-price").value) || 0,
       priority: document.getElementById("f-priority").checked,
       notes: document.getElementById("f-notes").value.trim(),
-      matchedStones: linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : []
+      matchedStones: linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : [],
+      createdByOffice: currentActorName() || "shared"
     };
     try {
       var offer = await createOfferOnServer(payload);
@@ -1733,6 +1790,32 @@
   document.addEventListener("click", function (e) {
     var dd = document.getElementById("notifDropdown");
     if (!dd.hidden && !e.target.closest(".notif-wrap")) dd.hidden = true;
+    var ad = document.getElementById("actorDropdown");
+    if (!ad.hidden && !e.target.closest(".actor-wrap")) ad.hidden = true;
+  });
+  document.getElementById("actorBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var dd = document.getElementById("actorDropdown");
+    dd.hidden = !dd.hidden;
+    if (!dd.hidden) document.getElementById("actorAddInput").focus();
+  });
+  document.getElementById("actorList").addEventListener("click", function (e) {
+    var item = e.target.closest(".actor-item[data-name]");
+    if (!item) return;
+    setCurrentActorName(item.getAttribute("data-name"));
+    document.getElementById("actorDropdown").hidden = true;
+  });
+  document.getElementById("actorAddForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var input = document.getElementById("actorAddInput");
+    var name = input.value.trim();
+    if (!name) return;
+    try {
+      var member = await addTeamMember(name);
+      setCurrentActorName(member.name);
+      input.value = "";
+      document.getElementById("actorDropdown").hidden = true;
+    } catch (err) { alert("Could not add name: " + err.message); }
   });
   document.getElementById("notifMarkAllBtn").addEventListener("click", async function (e) {
     e.stopPropagation();
@@ -1761,10 +1844,11 @@
   }
 
   async function bootApp() {
-    await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer()]);
+    await Promise.all([loadOffersFromServer(), loadClientsFromServer(), loadInventoryFromServer(), loadNotificationsFromServer(), loadTeamMembersFromServer()]);
     populateClientDatalist();
     renderOffersTab();
     updateNotifBadge();
+    updateActorUI();
     startPolling();
   }
 

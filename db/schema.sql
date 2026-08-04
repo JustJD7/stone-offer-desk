@@ -4,6 +4,18 @@
 create extension if not exists pgcrypto; -- for gen_random_uuid()
 
 -- ---------------------------------------------------------------------------
+-- Team members: name-only attribution, no password. Anyone can pick an
+-- existing name or add a new one — this is "who's using it", not access
+-- control (the app itself has none).
+-- ---------------------------------------------------------------------------
+create table if not exists team_members (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists team_members_name_lower_idx on team_members (lower(name));
+
+-- ---------------------------------------------------------------------------
 -- Clients: trading-partner directory (bulk-imported once, then edited/added to)
 -- ---------------------------------------------------------------------------
 create table if not exists clients (
