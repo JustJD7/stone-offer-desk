@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { sql } from "../../lib/db.js";
-import { verifyPassword } from "../../lib/auth.js";
+import { verifyPassword, hashPassword } from "../../lib/auth.js";
 import { getSession } from "../../lib/session.js";
 
 const router = Router();
@@ -34,6 +34,26 @@ router.get("/me", async (req, res) => {
   const session = await getSession(req, res);
   if (!session.user) { res.status(401).json({ error: "Not signed in." }); return; }
   res.status(200).json({ user: session.user });
+});
+
+router.post("/change-password", async (req, res) => {
+  const session = await getSession(req, res);
+  if (!session.user) { res.status(401).json({ error: "Not signed in." }); return; }
+
+  const body = (req.body ?? {}) as { currentPassword?: string; newPassword?: string };
+  const currentPassword = body.currentPassword ?? "";
+  const newPassword = body.newPassword ?? "";
+  if (newPassword.length < 6) { res.status(400).json({ error: "New password must be at least 6 characters." }); return; }
+
+  const rows = await sql`select * from desk_users where id = ${session.user.id}`;
+  const row = rows[0];
+  if (!row || !verifyPassword(currentPassword, row.password_hash)) {
+    res.status(401).json({ error: "Current password is incorrect." });
+    return;
+  }
+
+  await sql`update desk_users set password_hash = ${hashPassword(newPassword)} where id = ${session.user.id}`;
+  res.status(200).json({ ok: true });
 });
 
 export default router;

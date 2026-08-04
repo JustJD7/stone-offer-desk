@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { sql } from "../../lib/db.js";
-import { hashPassword } from "../../lib/auth.js";
+import { hashPassword, generateRandomPassword } from "../../lib/auth.js";
 
 const router = Router();
 
@@ -31,6 +31,16 @@ router.post("/", async (req, res) => {
     returning *
   `;
   res.status(201).json({ user: rowToUser(rows[0]) });
+});
+
+router.post("/:id/reset-password", async (req, res) => {
+  const id = req.params.id;
+  const existing = await sql`select id from desk_users where id = ${id}`;
+  if (!existing[0]) { res.status(404).json({ error: "User not found." }); return; }
+
+  const newPassword = generateRandomPassword();
+  await sql`update desk_users set password_hash = ${hashPassword(newPassword)} where id = ${id}`;
+  res.status(200).json({ newPassword });
 });
 
 router.delete("/:id", async (req, res) => {

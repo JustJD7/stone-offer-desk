@@ -455,6 +455,7 @@
           <button class="btn btn-ghost user-btn" id="userBtn" type="button">👤 <span id="userBtnLabel"></span></button>
           <div class="user-dropdown" id="userDropdown" hidden>
             <button type="button" class="user-dropdown-item" id="adminPanelBtn" hidden>Admin panel</button>
+            <button type="button" class="user-dropdown-item" id="changePasswordBtn">Change password</button>
             <button type="button" class="user-dropdown-item danger" id="logoutBtn">Log out</button>
           </div>
         </div>
@@ -683,6 +684,27 @@
           <div class="field wide"><button type="submit" class="btn btn-primary" style="width:100%;">Add user</button></div>
         </form>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="changePasswordModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:380px;">
+      <form id="changePasswordForm">
+        <div class="modal-header">
+          <h3>Change password</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="changePasswordModalClose" aria-label="Close">Close</button>
+        </div>
+        <div class="modal-body" style="grid-template-columns:1fr;">
+          <div class="login-error" id="changePasswordError"></div>
+          <div class="field"><label for="cp-current">Current password</label><input id="cp-current" type="password" required autocomplete="current-password"></div>
+          <div class="field"><label for="cp-new">New password</label><input id="cp-new" type="password" minlength="6" required autocomplete="new-password"></div>
+          <div class="field"><label for="cp-repeat">Repeat new password</label><input id="cp-repeat" type="password" minlength="6" required autocomplete="new-password"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="changePasswordCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save new password</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1152,7 +1174,10 @@
   function renderAdminUserList() {
     document.getElementById("adminUserList").innerHTML = adminUsers.map(function (u) {
       return '<div class="admin-user-row"><span>' + esc(u.name) + (u.isAdmin ? '<span class="admin-badge">Admin</span>' : "") + '</span>' +
-        '<button type="button" class="btn btn-sm btn-ghost btn-danger" data-action="removeUser" data-id="' + u.id + '">Remove</button></div>';
+        '<div style="display:flex;gap:6px;">' +
+        '<button type="button" class="btn btn-sm btn-ghost" data-action="resetPassword" data-id="' + u.id + '" data-name="' + esc(u.name) + '">Reset Password</button>' +
+        '<button type="button" class="btn btn-sm btn-ghost btn-danger" data-action="removeUser" data-id="' + u.id + '">Remove</button>' +
+        "</div></div>";
     }).join("") || '<div class="hint">No users yet.</div>';
   }
 
@@ -1773,6 +1798,8 @@
     if (document.getElementById("drawerOverlay").classList.contains("open")) closeDetailDrawer();
     if (!document.getElementById("notifDropdown").hidden) document.getElementById("notifDropdown").hidden = true;
     if (!document.getElementById("userDropdown").hidden) document.getElementById("userDropdown").hidden = true;
+    if (document.getElementById("adminModalOverlay").classList.contains("open")) document.getElementById("adminModalOverlay").classList.remove("open");
+    if (document.getElementById("changePasswordModalOverlay").classList.contains("open")) closeChangePasswordModal();
   });
 
   document.getElementById("offerForm").addEventListener("submit", async function (e) {
@@ -1874,6 +1901,39 @@
   });
 
   /* =========================================================================
+     EVENTS — Change password
+  ========================================================================= */
+  var changePasswordModalOverlay = document.getElementById("changePasswordModalOverlay");
+  function closeChangePasswordModal() {
+    changePasswordModalOverlay.classList.remove("open");
+    document.getElementById("changePasswordForm").reset();
+    document.getElementById("changePasswordError").textContent = "";
+  }
+  document.getElementById("changePasswordBtn").addEventListener("click", function () {
+    document.getElementById("userDropdown").hidden = true;
+    changePasswordModalOverlay.classList.add("open");
+  });
+  document.getElementById("changePasswordModalClose").addEventListener("click", closeChangePasswordModal);
+  document.getElementById("changePasswordCancel").addEventListener("click", closeChangePasswordModal);
+  changePasswordModalOverlay.addEventListener("click", function (e) { if (e.target === changePasswordModalOverlay) closeChangePasswordModal(); });
+  document.getElementById("changePasswordForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var errEl = document.getElementById("changePasswordError");
+    errEl.textContent = "";
+    var currentPassword = document.getElementById("cp-current").value;
+    var newPassword = document.getElementById("cp-new").value;
+    var repeat = document.getElementById("cp-repeat").value;
+    if (newPassword !== repeat) { errEl.textContent = "New password and repeat don't match."; return; }
+    try {
+      await api("POST", "/api/auth/change-password", { currentPassword: currentPassword, newPassword: newPassword });
+      closeChangePasswordModal();
+      alert("Password changed — use your new password next time you sign in.");
+    } catch (err) {
+      errEl.textContent = err.message || "Could not change password.";
+    }
+  });
+
+  /* =========================================================================
      EVENTS — Admin panel (users + export)
   ========================================================================= */
   var adminModalOverlay = document.getElementById("adminModalOverlay");
@@ -1897,14 +1957,26 @@
     } catch (err) { alert("Could not add user: " + err.message); }
   });
   document.getElementById("adminUserList").addEventListener("click", async function (e) {
-    var btn = e.target.closest("[data-action='removeUser']");
-    if (!btn) return;
-    if (!window.confirm("Remove this user? They won't be able to sign in anymore.")) return;
-    try {
-      await api("DELETE", "/api/users/" + btn.getAttribute("data-id"));
-      await loadAdminUsers();
-      renderAdminUserList();
-    } catch (err) { alert("Could not remove user: " + err.message); }
+    var removeBtn = e.target.closest("[data-action='removeUser']");
+    if (removeBtn) {
+      if (!window.confirm("Remove this user? They won't be able to sign in anymore.")) return;
+      try {
+        await api("DELETE", "/api/users/" + removeBtn.getAttribute("data-id"));
+        await loadAdminUsers();
+        renderAdminUserList();
+      } catch (err) { alert("Could not remove user: " + err.message); }
+      return;
+    }
+    var resetBtn = e.target.closest("[data-action='resetPassword']");
+    if (resetBtn) {
+      var name = resetBtn.getAttribute("data-name");
+      if (!window.confirm("Generate a new password for " + name + "? Their current password will stop working.")) return;
+      try {
+        var data = await api("POST", "/api/users/" + resetBtn.getAttribute("data-id") + "/reset-password");
+        alert("New password for " + name + ":\n\n" + data.newPassword + "\n\nGive this to them now — it won't be shown again.");
+      } catch (err) { alert("Could not reset password: " + err.message); }
+      return;
+    }
   });
   document.getElementById("exportOffersBtn").addEventListener("click", function () {
     window.location.href = "/api/offers/export";
