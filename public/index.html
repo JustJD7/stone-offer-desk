@@ -348,10 +348,7 @@
     width: 100%; font-family: var(--font-body); font-size: 13px; padding: 9px 10px;
     border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); resize: vertical; min-height: 56px;
   }
-  .msg-form-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-  .seg button { font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 6px 10px; border: none; background: var(--surface); color: var(--ink-muted); cursor: pointer; }
-  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .msg-form-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   .price-input { width: 150px; font-family: var(--font-body); font-size: 12.5px; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
 
   /* ---------- Matched stones (offer-form stone lookup only) ---------- */
@@ -410,6 +407,12 @@
   .lookup-status { font-size: 12px; padding: 4px 0; grid-column: 1/-1; }
   .lookup-status.ok { color: var(--status-accepted); }
   .lookup-status.muted { color: var(--ink-muted); }
+
+  .our-pricing-box { grid-column: 1/-1; background: var(--accent-soft); border-radius: 9px; padding: 10px 12px; margin: -4px 0 4px; }
+  .our-pricing-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--accent); margin-bottom: 6px; }
+  .our-pricing-grid { display: flex; gap: 18px; flex-wrap: wrap; }
+  .our-pricing-grid span { display: block; font-size: 11px; color: var(--ink-muted); }
+  .our-pricing-grid b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
 
   @media (max-width: 980px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
@@ -606,6 +609,7 @@
             <input id="f-stoneLookup" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>
           <div class="hint" id="f-stoneLookupHint">If this deal concerns a specific stone we already hold, look it up here — it fills in the fields below for you, still editable.</div>
           <div id="f-stoneLookupResults"></div>
+          <div id="f-ourPricing"></div>
 
           <div class="field wide"><label for="f-client">Client (entity name)</label><input id="f-client" list="clientOptions" required autocomplete="off"></div>
           <div class="hint">Type an existing client name or a new one — new names are added to the Clients directory automatically.</div>
@@ -978,6 +982,24 @@
   function money2(n) { return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function signed(n, formatter) { return (n >= 0 ? "+" : "-") + formatter(Math.abs(n)); }
 
+  /** Shown in the New/Edit Offer form as soon as a stone is linked, so staff
+   *  can see our own price while they're entering the client's price. */
+  function ourPricingHtml(stone) {
+    if (!stone) return "";
+    var carat = Number(stone.weight) || 1;
+    var rate = Number(stone.rate) || 0;
+    var rapRate = Number(stone.rapRate) || 0;
+    var total = Number(stone.amt) || rate * carat;
+    var disc = rapRate ? (1 - rate / rapRate) * 100 : null;
+    return '<div class="our-pricing-box">' +
+      '<div class="our-pricing-title">Our Pricing — ' + esc(stone.stoneId) + '</div>' +
+      '<div class="our-pricing-grid">' +
+        (disc != null ? '<div><span>Discount</span><b>' + disc.toFixed(2) + '% off Rap</b></div>' : "") +
+        '<div><span>Rate/ct</span><b>' + money2(rate) + '</b></div>' +
+        '<div><span>Total</span><b>' + money2(total) + '</b></div>' +
+      "</div></div>";
+  }
+
   /** Full three-row comparison table (Discount / Rate / Total) — "Our Price"
    *  is derived from the linked inventory stone (rate + Rap rate), "Client
    *  Offer" is derived from whichever of Rate/Amt/Back the offer actually
@@ -1258,7 +1280,7 @@
         '<div class="thread-block"><div class="thread-title">Negotiation Thread</div><div class="thread">' + thread + "</div>" +
           '<form class="msg-form" data-id="' + o.id + '">' +
             '<div class="msg-form-row"><textarea placeholder="Log a message, counter-offer, or update…" required></textarea></div>' +
-            '<div class="msg-form-controls"><div class="seg" data-role="author"><button type="button" class="on" data-value="company">Company</button><button type="button" data-value="client">Client (relayed)</button></div>' +
+            '<div class="msg-form-controls">' +
               '<input type="number" step="0.01" class="price-input" placeholder="' + pricePlaceholder + '"><button type="submit" class="btn btn-primary btn-sm">Post</button></div>' +
           "</form></div>" +
       "</div>";
@@ -1520,8 +1542,6 @@
       if (offer) setOfferStatus(offer, stepBtn.getAttribute("data-step"));
       return;
     }
-    var segBtn = e.target.closest(".seg button");
-    if (segBtn) { var seg = segBtn.closest(".seg"); seg.querySelectorAll("button").forEach(function (b) { b.classList.remove("on"); }); segBtn.classList.add("on"); return; }
   });
   detailPanelEl.addEventListener("submit", async function (e) {
     var form = e.target.closest(".msg-form");
@@ -1531,10 +1551,9 @@
     if (!offer) return;
     var textarea = form.querySelector("textarea");
     var priceInput = form.querySelector(".price-input");
-    var authorBtn = form.querySelector(".seg button.on");
     var message = textarea.value.trim();
     if (!message) return;
-    var entry = { author: authorBtn ? authorBtn.getAttribute("data-value") : "company", message: message, ts: new Date().toISOString() };
+    var entry = { author: "company", message: message, ts: new Date().toISOString() };
     if (priceInput.value !== "") entry.price = Number(priceInput.value);
     try {
       await patchOfferOnServer(offer.id, { version: offer.version, appendMessage: entry });
@@ -1658,6 +1677,7 @@
     var q = e.target.value.trim().toLowerCase();
     var el = document.getElementById("f-stoneLookupResults");
     linkedStoneForNewOffer = null;
+    document.getElementById("f-ourPricing").innerHTML = "";
     if (!q) { el.innerHTML = ""; return; }
     var results = inventory.filter(function (s) { return s.stoneId.toLowerCase().indexOf(q) !== -1 || String(s.reportNo).toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
     if (!results.length) { el.innerHTML = '<div class="lookup-status muted">' + (inventory.length ? "No match found." : "Connect AutoMail inventory first (Inventory tab).") + "</div>"; return; }
@@ -1674,6 +1694,7 @@
     linkedStoneForNewOffer = stone;
     document.getElementById("f-stoneLookup").value = stone.stoneId;
     document.getElementById("f-stoneLookupResults").innerHTML = '<div class="lookup-status ok">Linked ✓ ' + esc(stone.stoneId) + " — fields below filled in, still editable.</div>";
+    document.getElementById("f-ourPricing").innerHTML = ourPricingHtml(stone);
     document.getElementById("f-shape").value = stone.shape;
     document.getElementById("f-carat").value = stone.weight;
     document.getElementById("f-color").value = stone.color;
@@ -1703,6 +1724,9 @@
       document.getElementById("f-priority").checked = !!offerToEdit.priority;
       document.getElementById("f-notes").value = offerToEdit.notes || "";
       linkedStoneForNewOffer = null;
+      var existingRef = (offerToEdit.matchedStones || [])[0];
+      document.getElementById("f-ourPricing").innerHTML = existingRef ? ourPricingHtml(existingRef) : "";
+      if (existingRef) document.getElementById("f-stoneLookup").value = existingRef.stoneId;
       syncPriceLabel();
     }
     overlay.classList.add("open");
@@ -1712,6 +1736,7 @@
     overlay.classList.remove("open");
     document.getElementById("offerForm").reset();
     document.getElementById("f-stoneLookupResults").innerHTML = "";
+    document.getElementById("f-ourPricing").innerHTML = "";
     linkedStoneForNewOffer = null;
     editingOfferId = null;
     document.getElementById("modalTitle").textContent = "Log a new client offer";
