@@ -11,5 +11,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["server", "lib", "worker", "scripts"]
+  "include": ["server", "api", "lib", "worker", "scripts"]
 }
