@@ -415,6 +415,13 @@
   .our-pricing-grid b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
   .stone-links-row { display: flex; gap: 8px; margin-top: 10px; grid-column: 1/-1; }
 
+  /* ---------- Superadmin: oversight-only, no offer edits ---------- */
+  body.role-superadmin #newOfferBtn,
+  body.role-superadmin #editOfferBtn,
+  body.role-superadmin #deleteOfferBtn,
+  body.role-superadmin .msg-form { display: none; }
+  body.role-superadmin .pipeline-card { cursor: default; }
+
   @media (max-width: 980px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
     .modal-body { grid-template-columns: 1fr; }
@@ -474,6 +481,7 @@
       <button type="button" class="tab-btn active" data-tab="offers">Offers Pipeline</button>
       <button type="button" class="tab-btn" data-tab="inventory">Inventory (AutoMail)</button>
       <button type="button" class="tab-btn" data-tab="clients">Clients</button>
+      <button type="button" class="tab-btn" data-tab="activity">Activity</button>
     </nav>
 
     <section class="tab-panel" id="tab-offers">
@@ -568,6 +576,13 @@
             <tbody></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-activity" hidden>
+      <div class="panel">
+        <div class="toolbar"><div class="hint" id="activityHint" style="margin-top:0;">Who did what, most recent first.</div></div>
+        <div id="activityList"></div>
       </div>
     </section>
   </div>
@@ -1166,6 +1181,7 @@
     document.getElementById("adminPanelBtn").hidden = !currentUser.isAdmin;
     document.getElementById("exportOffersBtn").hidden = !currentUser.isAdmin;
     document.getElementById("resetClientsBtn").hidden = !currentUser.isAdmin;
+    document.body.classList.toggle("role-superadmin", currentUser.role === "superadmin");
   }
   async function loadAdminUsers() {
     var data = await api("GET", "/api/users");
@@ -1173,7 +1189,8 @@
   }
   function renderAdminUserList() {
     document.getElementById("adminUserList").innerHTML = adminUsers.map(function (u) {
-      return '<div class="admin-user-row"><span>' + esc(u.name) + (u.isAdmin ? '<span class="admin-badge">Admin</span>' : "") + '</span>' +
+      var badge = u.role === "superadmin" ? "Superadmin" : (u.role === "admin" ? "Admin" : "");
+      return '<div class="admin-user-row"><span>' + esc(u.name) + (badge ? '<span class="admin-badge">' + badge + "</span>" : "") + '</span>' +
         '<div style="display:flex;gap:6px;">' +
         '<button type="button" class="btn btn-sm btn-ghost" data-action="resetPassword" data-id="' + u.id + '" data-name="' + esc(u.name) + '">Reset Password</button>' +
         '<button type="button" class="btn btn-sm btn-ghost btn-danger" data-action="removeUser" data-id="' + u.id + '">Remove</button>' +
@@ -1229,7 +1246,8 @@
   function cardHtml(o) {
     var client = clientById(o.clientId);
     var name = client ? client.entityName : "(unknown client)";
-    return '<div class="pipeline-card' + (o.unread ? " unread-blink" : "") + '" draggable="true" data-id="' + o.id + '">' +
+    var draggable = currentUser && currentUser.role === "superadmin" ? "false" : "true";
+    return '<div class="pipeline-card' + (o.unread ? " unread-blink" : "") + '" draggable="' + draggable + '" data-id="' + o.id + '">' +
       (o.unread ? '<span class="card-unread-dot" title="Unread activity"></span>' : "") +
       '<div class="pipeline-card-top"><span class="pipeline-card-client">' + esc(name) + '</span>' + (o.priority ? '<span class="pill pill-priority">High</span>' : "") + "</div>" +
       '<div class="pipeline-card-spec">' + esc(o.shape) + " · " + esc(o.carat) + "ct · " + esc(o.color) + "/" + esc(o.clarity) + "</div>" +
@@ -1513,6 +1531,44 @@
   }
 
   /* =========================================================================
+     ACTIVITY LOG — visibility is filtered server-side by role: superadmin
+     sees everyone, admin sees everyone except superadmin, a plain user
+     sees only their own actions.
+  ========================================================================= */
+  var ACTIVITY_LABELS = {
+    login: "signed in",
+    password_changed: "changed their password",
+    offer_created: "logged a new offer",
+    offer_edited: "edited an offer",
+    offer_status_changed: "moved an offer",
+    offer_deleted: "deleted an offer",
+    message_posted: "posted a message",
+    client_added: "added a client",
+    client_edited: "edited a client",
+    client_deleted: "deleted a client",
+    clients_reset: "reset the client directory",
+    user_added: "added a user",
+    user_removed: "removed a user",
+    password_reset: "reset a user's password",
+    inventory_refreshed: "refreshed inventory from email"
+  };
+  async function loadAndRenderActivity() {
+    var list = document.getElementById("activityList");
+    list.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      var data = await api("GET", "/api/activity");
+      if (!data.activity.length) { list.innerHTML = '<div class="empty-state">No activity yet.</div>'; return; }
+      list.innerHTML = data.activity.map(function (a) {
+        var label = ACTIVITY_LABELS[a.action] || a.action;
+        return '<div class="admin-user-row"><span><b>' + esc(a.actorName) + "</b> " + label + (a.detail ? " — " + esc(a.detail) : "") + '</span>' +
+          '<span class="hint" style="margin:0;white-space:nowrap;">' + fmtDateTime(a.ts) + "</span></div>";
+      }).join("");
+    } catch (err) {
+      list.innerHTML = '<div class="empty-state">Could not load activity: ' + esc(err.message) + "</div>";
+    }
+  }
+
+  /* =========================================================================
      TABS
   ========================================================================= */
   function switchToTab(tab) {
@@ -1525,6 +1581,7 @@
       switchToTab(tab);
       if (tab === "inventory") renderInventoryTable();
       if (tab === "clients") { populateClientCountryFilter(); renderClients(); }
+      if (tab === "activity") loadAndRenderActivity();
     });
   });
 

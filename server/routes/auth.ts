@@ -2,6 +2,7 @@ import { Router } from "express";
 import { sql } from "../../lib/db.js";
 import { verifyPassword, hashPassword } from "../../lib/auth.js";
 import { getSession } from "../../lib/session.js";
+import { logActivity } from "../../lib/activityLog.js";
 
 const router = Router();
 
@@ -19,8 +20,9 @@ router.post("/login", async (req, res) => {
   }
 
   const session = await getSession(req, res);
-  session.user = { id: row.id, name: row.name, isAdmin: row.is_admin };
+  session.user = { id: row.id, name: row.name, isAdmin: row.role !== "user", role: row.role };
   await session.save();
+  await logActivity({ actorId: row.id, actorName: row.name, actorRole: row.role, action: "login" });
   res.status(200).json({ user: session.user });
 });
 
@@ -53,6 +55,7 @@ router.post("/change-password", async (req, res) => {
   }
 
   await sql`update desk_users set password_hash = ${hashPassword(newPassword)} where id = ${session.user.id}`;
+  await logActivity({ actorId: session.user.id, actorName: session.user.name, actorRole: session.user.role, action: "password_changed", detail: "Changed their own password." });
   res.status(200).json({ ok: true });
 });
 

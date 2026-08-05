@@ -8,6 +8,7 @@ import inventoryRouter from "./routes/inventory.js";
 import notificationsRouter from "./routes/notifications.js";
 import authRouter from "./routes/auth.js";
 import usersRouter from "./routes/users.js";
+import activityRouter from "./routes/activity.js";
 import { requireAuth, requireAdmin } from "./middleware/requireAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,7 @@ app.use("/api/clients", requireAuth, clientsRouter);
 app.use("/api/inventory", requireAuth, inventoryRouter);
 app.use("/api/notifications", requireAuth, notificationsRouter);
 app.use("/api/users", requireAdmin, usersRouter);
+app.use("/api/activity", requireAuth, activityRouter);
 
 app.use(express.static(publicDir, { etag: false, lastModified: false, cacheControl: false }));
 app.get("*", (_req, res) => {

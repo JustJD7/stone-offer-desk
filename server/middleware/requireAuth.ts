@@ -24,3 +24,16 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   req.user = session.user;
   next();
 }
+
+/** The hidden superadmin account is oversight-only — it can view offers,
+ *  clients, exports and activity, but never creates/edits/deletes an offer
+ *  or posts a chat message, since either would leave its name on a record
+ *  every other signed-in user can see. */
+export async function blockSuperadmin(req: Request, res: Response, next: NextFunction) {
+  const session = await getSession(req, res);
+  if (session.user?.role === "superadmin") {
+    res.status(403).json({ error: "This account is view-only." });
+    return;
+  }
+  next();
+}

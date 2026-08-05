@@ -4,7 +4,8 @@ import { sql } from "../../lib/db.js";
 import { rowToOffer } from "../../lib/mappers.js";
 import { resolveOrCreateClient } from "../../lib/clients.js";
 import { compareOfferPrice } from "../../lib/priceCompare.js";
-import { requireAdmin } from "../middleware/requireAuth.js";
+import { requireAdmin, blockSuperadmin } from "../middleware/requireAuth.js";
+import { logActivity } from "../../lib/activityLog.js";
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.get("/export", requireAdmin, async (_req, res) => {
     .send(buffer);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", blockSuperadmin, async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const clientName = String(body.clientName ?? "").trim();
   const type = String(body.type ?? "");
@@ -112,11 +113,12 @@ router.post("/", async (req, res) => {
     insert into notifications (type, offer_id, text)
     values ('new_offer', ${offer.id}, ${"New offer from " + entityName + " — " + shape + " " + carat + "ct"})
   `;
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_created", detail: `${entityName} — ${shape} ${carat}ct`, offerId: offer.id });
 
   res.status(201).json({ offer });
 });
 
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", blockSuperadmin, async (req, res) => {
   const id = req.params.id;
   const body = (req.body ?? {}) as {
     version?: number; status?: string; priority?: boolean; markRead?: boolean;
@@ -200,15 +202,27 @@ router.patch("/:id", async (req, res) => {
       insert into notifications (type, offer_id, text)
       values ('new_message', ${id}, ${byName + " on " + entityName + ": " + String(body.appendMessage.message).slice(0, 80)})
     `;
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "message_posted", detail: String(body.appendMessage.message).slice(0, 120), offerId: id });
+  } else if (body.status !== undefined && body.status !== row.status) {
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_status_changed", detail: `${row.status} → ${status}`, offerId: id });
+  } else if (
+    body.clientName !== undefined || body.contact !== undefined || body.channel !== undefined || body.type !== undefined ||
+    body.shape !== undefined || body.carat !== undefined || body.color !== undefined || body.clarity !== undefined ||
+    body.cut !== undefined || body.cert !== undefined || body.priceType !== undefined || body.price !== undefined || body.notes !== undefined
+  ) {
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_edited", detail: `${shape} ${carat}ct`, offerId: id });
   }
 
   res.status(200).json({ offer: rowToOffer(updated[0]) });
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", blockSuperadmin, async (req, res) => {
   const id = req.params.id;
+  const existing = await sql`select o.shape, o.carat, c.entity_name from offers o left join clients c on c.id = o.client_id where o.id = ${id}`;
   await sql`delete from notifications where offer_id = ${id}`;
   await sql`delete from offers where id = ${id}`;
+  const e = existing[0];
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_deleted", detail: e ? `${e.entity_name || "Unknown client"} — ${e.shape} ${e.carat}ct` : "" });
   res.status(200).json({ ok: true });
 });
 

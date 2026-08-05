@@ -2,10 +2,13 @@ import { getIronSession } from "iron-session";
 import type { IronSession } from "iron-session";
 import type { Request, Response } from "express";
 
+export type UserRole = "user" | "admin" | "superadmin";
+
 export interface SessionUser {
   id: string;
   name: string;
-  isAdmin: boolean;
+  isAdmin: boolean; // true for admin and superadmin — kept for existing admin-gated UI
+  role: UserRole;
 }
 
 export interface SessionData {

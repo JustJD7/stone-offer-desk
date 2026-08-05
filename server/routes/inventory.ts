@@ -4,6 +4,7 @@ import { rowToStone } from "../../lib/mappers.js";
 import { clearInventoryStaging, appendInventoryStagingChunk, commitStagedInventory, stageAndSwapInventory } from "../../lib/inventorySwap.js";
 import { normalizeStone, parseWorkbookBuffer, buildInventoryFromRows, type InventoryStone } from "../../lib/xlsxParse.js";
 import { fetchLatestAutoMail } from "../../lib/gmailImap.js";
+import { logActivity } from "../../lib/activityLog.js";
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.get("/:stoneId", async (req, res) => {
 // On-demand refresh: fetch the newest AutoMail.xlsx straight from the mailbox
 // right now (the "Refresh" button in the Inventory tab), rather than waiting
 // for the next scheduled run.
-router.post("/refresh", async (_req, res) => {
+router.post("/refresh", async (req, res) => {
   try {
     const { buffer, emailDate, fileName } = await fetchLatestAutoMail();
     const { headers, rows } = parseWorkbookBuffer(buffer);
@@ -47,6 +48,7 @@ router.post("/refresh", async (_req, res) => {
     await stageAndSwapInventory(stones, { fileName, source: "gmail-refresh", emailDate });
 
     const metaRows = await sql`select * from inventory_meta where id = 1`;
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "inventory_refreshed", detail: `${fileName} (${stones.length} stones)` });
     res.status(200).json({ rowCount: stones.length, meta: metaToJson(metaRows[0]) });
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : "Refresh failed." });

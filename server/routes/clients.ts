@@ -2,13 +2,15 @@ import { Router } from "express";
 import { sql } from "../../lib/db.js";
 import { rowToClient } from "../../lib/mappers.js";
 import { requireAdmin } from "../middleware/requireAuth.js";
+import { logActivity } from "../../lib/activityLog.js";
 
 const router = Router();
 
 // Must come before "/:id" so "reset" isn't treated as an id.
-router.delete("/reset", requireAdmin, async (_req, res) => {
+router.delete("/reset", requireAdmin, async (req, res) => {
   await sql`update offers set client_id = null`;
   await sql`delete from clients`;
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "clients_reset", detail: "Removed all clients." });
   res.status(200).json({ ok: true });
 });
 
@@ -24,6 +26,7 @@ router.post("/", async (req, res) => {  const body = (req.body ?? {}) as { entit
     values (${entityName}, ${body.country ?? ""}, ${body.stockCategory ?? ""}, 'manual')
     returning *
   `;
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "client_added", detail: entityName });
   res.status(201).json({ client: rowToClient(rows[0]) });
 });
 
@@ -70,12 +73,15 @@ router.patch("/:id", async (req, res) => {  const id = req.params.id;
     where id = ${id}
     returning *
   `;
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "client_edited", detail: rows[0].entity_name });
   res.status(200).json({ client: rowToClient(rows[0]) });
 });
 
 router.delete("/:id", async (req, res) => {  const id = req.params.id;
+  const existing = await sql`select entity_name from clients where id = ${id}`;
   await sql`update offers set client_id = null where client_id = ${id}`;
   await sql`delete from clients where id = ${id}`;
+  await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "client_deleted", detail: existing[0]?.entity_name || "" });
   res.status(200).json({ ok: true });
 });
 

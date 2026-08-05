@@ -4,7 +4,10 @@
 
 - Code lives at `github.com/JustJD7/stone-offer-desk`, connected to a Vercel project.
 - Database: Neon Postgres, schema already applied.
-- Login required — name + password, per office/person. Jaydeep's account is an admin: can create/remove other users (Admin panel, in the user menu top-right) and export all offers to Excel ("Export Offers" button, admin only).
+- Login required — name + password, per office/person. Three roles:
+  - **user** — add/edit/remove offers; the Activity tab shows only their own actions.
+  - **admin** — everything a user can do, plus the Admin panel (add/remove users, reset passwords), Excel export, and an Activity tab showing everyone's actions except the hidden superadmin's.
+  - **superadmin** (hidden) — hidden from every user list and from admins' Activity tab entirely; view-only (can't create/edit/delete offers or post chat, so it never shows up as an offer's author) but sees literally everything, including admin activity. Credentials for this account were given to you directly, not stored in this repo.
 - AutoMail inventory can be refreshed two ways:
   - **On demand:** the "🔄 Refresh from Email" button in the Inventory tab — fetches the newest `AutoMail.xlsx` from the mailbox's "Stock List" folder right now.
   - **Automatically, every hour:** a GitHub Actions workflow (`.github/workflows/ingest-automail.yml`) runs the same fetch unattended.

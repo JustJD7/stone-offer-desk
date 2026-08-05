@@ -7,14 +7,19 @@ create extension if not exists pgcrypto; -- for gen_random_uuid()
 -- Desk users: name + password login for this app. Named "desk_users" (not
 -- "users") because this database already has a pre-existing "users" table
 -- from an older, unrelated CRM build — kept fully separate and untouched.
--- Any signed-in user can use the app; only admins can manage other desk
--- users (create/remove) and export offer data to Excel.
+--
+-- role: 'user' (add/edit/remove offers, sees only own activity) |
+--       'admin' (also manages users, exports, sees all non-superadmin
+--       activity) | 'superadmin' (oversight account — full visibility
+--       including admin activity, hidden from every user list and from
+--       every other role's activity view; never appears as the author of
+--       an offer/message since it can't create or edit either).
 -- ---------------------------------------------------------------------------
 create table if not exists desk_users (
   id            uuid primary key default gen_random_uuid(),
   name          text not null,
   password_hash text not null,
-  is_admin      boolean not null default false,
+  role          text not null default 'user' check (role in ('user', 'admin', 'superadmin')),
   created_at    timestamptz not null default now()
 );
 create unique index if not exists desk_users_name_lower_idx on desk_users (lower(name));
@@ -125,3 +130,21 @@ create table if not exists notifications (
   created_at timestamptz not null default now()
 );
 create index if not exists notifications_read_idx on notifications (read);
+
+-- ---------------------------------------------------------------------------
+-- Activity log: audit trail, visibility filtered by role at query time
+-- (see server/routes/activity.ts) — superadmin sees everything, admin sees
+-- everything except superadmin rows, a plain user sees only their own rows.
+-- ---------------------------------------------------------------------------
+create table if not exists activity_log (
+  id         uuid primary key default gen_random_uuid(),
+  actor_id   uuid references desk_users(id) on delete set null,
+  actor_name text not null,
+  actor_role text not null,
+  action     text not null,
+  detail     text default '',
+  offer_id   uuid references offers(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists activity_log_actor_id_idx on activity_log (actor_id);
+create index if not exists activity_log_created_at_idx on activity_log (created_at desc);
