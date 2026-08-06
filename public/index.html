@@ -1074,28 +1074,27 @@
     var eff = computeEffectiveRate(o);
     return eff != null ? eff * carat : 0;
   }
-  /** Profit to us, sign-normalized so + is always a gain and - is always a
-   *  loss regardless of buy/sell direction — for "sell" (client sells to us)
-   *  we gain when our valuation is higher than what the client asks; for
-   *  "buy" (client buys from us) we gain when the client pays more than our
-   *  valuation. Returns null when there's no linked inventory stone to value against. */
-  function stoneProfit(offerType, priceType, price, carat, ref) {
+  /** Profit to us on a stone linked to one of our inventory stones: what the
+   *  client's price comes to, minus what we value it at (our rate/amt). Positive
+   *  is a gain, negative is a loss. Returns null when there's no linked stone to
+   *  value against. */
+  function stoneProfit(priceType, price, carat, ref) {
     if (!ref || !ref.rapRate) return null;
     carat = parseFloat(carat) || 1;
     var clientTotal = stoneEffectiveValue(priceType, price, carat, ref);
     var ourTotal = ref.amt || ref.rate * carat;
-    return offerType === "buy" ? (clientTotal - ourTotal) : (ourTotal - clientTotal);
+    return clientTotal - ourTotal;
   }
   function offerProfit(o) {
     if (isMultiStone(o)) {
       var total = null;
       o.stones.forEach(function (s) {
-        var p = stoneProfit(o.type, s.priceType, s.price, s.carat, s.matchedStone);
+        var p = stoneProfit(s.priceType, s.price, s.carat, s.matchedStone);
         if (p != null) total = (total || 0) + p;
       });
       return total;
     }
-    return stoneProfit(o.type, o.priceType, o.price, o.carat, primaryMatchedStone(o));
+    return stoneProfit(o.priceType, o.price, o.carat, primaryMatchedStone(o));
   }
   function money2(n) { return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function signed(n, formatter) { return (n >= 0 ? "+" : "-") + formatter(Math.abs(n)); }
@@ -1147,8 +1146,8 @@
     }
 
     // One verdict drives all three rows' color — they're the same comparison in different units.
-    var favorable = o.type === "buy" ? clientRate > ourRate : clientRate < ourRate;
-    var favClass = favorable ? "good" : "bad";
+    // Profit to us is the client's total minus our valuation; positive is a gain, negative a loss.
+    var favClass = (clientTotal - ourTotal) >= 0 ? "good" : "bad";
 
     var rows = [];
     if (ourDisc != null && clientDisc != null) {
@@ -1406,7 +1405,7 @@
         var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
         var clientRate = carat ? clientTotal / carat : 0;
         var clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
-        var profit = stoneProfit(o.type, s.priceType, s.price, carat, ref);
+        var profit = stoneProfit(s.priceType, s.price, carat, ref);
         totalOur += ourTotal;
         totalProfit = (totalProfit || 0) + profit;
         cmpCells =
