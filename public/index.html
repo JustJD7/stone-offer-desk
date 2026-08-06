@@ -327,6 +327,8 @@
   .compare-table td.label { color: var(--ink-muted); font-size: 11.5px; }
   .compare-table td.diff.good { color: var(--status-accepted); font-weight: 700; }
   .compare-table td.diff.bad { color: var(--status-rejected); font-weight: 700; }
+  .stones-detail-table td.good { color: var(--status-accepted); font-weight: 700; }
+  .stones-detail-table td.bad { color: var(--status-rejected); font-weight: 700; }
   .compare-table td.client { color: var(--accent-strong); font-weight: 600; }
 
   .notes-block { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink-2); }
@@ -416,22 +418,14 @@
   .stone-links-row { display: flex; gap: 8px; margin-top: 10px; grid-column: 1/-1; }
 
   /* ---------- Multi-stone create form ---------- */
-  #modalOverlay .modal { max-width: 780px; }
   .stone-section { display: contents; }
   .stone-row {
-    grid-column: 1/-1; display: flex; flex-direction: column; gap: 6px;
-    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 4px; background: var(--surface-2);
+    grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 4px; background: var(--surface-2);
   }
-  .stone-row-head { display: flex; align-items: center; justify-content: space-between; }
+  .stone-row-head { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; margin-bottom: -2px; }
   .stone-row-head b { font-size: 12.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-2); }
-  .stone-fields-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; }
-  .stone-fields-grid .field { margin: 0; }
-  .cs-price-fields { display: contents; }
-  .stone-lookup-toggle {
-    align-self: flex-start; background: none; border: none; color: var(--accent); font-size: 11.5px;
-    font-weight: 700; letter-spacing: .2px; cursor: pointer; padding: 2px 0; text-decoration: underline;
-  }
-  .cs-lookup-panel { display: flex; flex-direction: column; gap: 6px; }
+  .stone-row-price { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 2px; }
 
   /* ---------- Superadmin: oversight-only, no offer edits ---------- */
   body.role-superadmin #newOfferBtn,
@@ -1347,19 +1341,39 @@
   }
 
   /** One row per stone in a combined multi-stone offer — replaces the single
-   *  Shape/Carat/.../price-block layout used for an ordinary one-stone offer. */
+   *  Shape/Carat/.../price-block layout used for an ordinary one-stone offer.
+   *  Mirrors buildCompareTable()'s discount/rate/diff math per stone, for any
+   *  stone that's linked to one of our inventory stones (has a rapRate ref). */
   function stonesTableHtml(o) {
     var rows = o.stones.map(function (s, i) {
       var carat = parseFloat(s.carat) || 0;
       var ref = s.matchedStone;
-      var total = stoneEffectiveValue(s.priceType, s.price, carat, ref);
+      var clientTotal = stoneEffectiveValue(s.priceType, s.price, carat, ref);
+      var cmpCells;
+      if (ref && ref.rapRate) {
+        var ourRate = ref.rate, ourRap = ref.rapRate;
+        var ourTotal = ref.amt || ourRate * carat;
+        var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
+        var clientRate = carat ? clientTotal / carat : 0;
+        var clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
+        var diffTotal = clientTotal - ourTotal;
+        var favorable = o.type === "buy" ? clientRate > ourRate : clientRate < ourRate;
+        cmpCells =
+          '<td class="num">' + (ourDisc != null ? ourDisc.toFixed(2) + "%" : "—") + "</td>" +
+          '<td class="num">' + (clientDisc != null ? clientDisc.toFixed(2) + "%" : "—") + "</td>" +
+          '<td class="num">' + money2(ourTotal) + "</td>" +
+          '<td class="num ' + (favorable ? "good" : "bad") + '">' + signed(diffTotal, money2) + "</td>";
+      } else {
+        cmpCells = '<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>';
+      }
       return "<tr><td>" + (i + 1) + "</td><td>" + esc(s.shape) + '</td><td class="num">' + carat.toFixed(2) + "</td><td>" +
         esc(s.color) + "/" + esc(s.clarity || "—") + "</td><td>" + esc(s.cut || "—") + '</td><td class="mono">' + esc(s.cert || "—") + "</td><td>" +
         formatPriceByType(s.priceType, s.price) + (ref ? ' <span class="mono" style="opacity:.6;">(' + esc(ref.stoneId) + ")</span>" : "") +
-        '</td><td class="num">' + money2(total) + "</td></tr>";
+        '</td><td class="num">' + money2(clientTotal) + "</td>" + cmpCells + "</tr>";
     }).join("");
     return '<div class="table-scroll"><table class="data-table stones-detail-table">' +
-      '<thead><tr><th>#</th><th>Shape</th><th class="num">Carat</th><th>Color/Clarity</th><th>Cut</th><th>Cert</th><th>Price</th><th class="num">Total</th></tr></thead>' +
+      "<thead><tr><th>#</th><th>Shape</th><th class=\"num\">Carat</th><th>Color/Clarity</th><th>Cut</th><th>Cert</th><th>Price</th><th class=\"num\">Total</th>" +
+      "<th class=\"num\">Our Disc%</th><th class=\"num\">Client Disc%</th><th class=\"num\">Our Total</th><th class=\"num\">Diff</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>";
   }
 
@@ -1856,28 +1870,24 @@
     return '' +
       '<div class="stone-row" data-row-id="' + rowId + '">' +
         '<div class="stone-row-head"><b>Stone</b><button type="button" class="btn btn-sm btn-ghost" data-remove-row="' + rowId + '">Remove</button></div>' +
-        '<button type="button" class="stone-lookup-toggle" data-toggle-lookup="' + rowId + '">🔍 Link one of our inventory stones (optional)</button>' +
-        '<div class="cs-lookup-panel" data-row="' + rowId + '" hidden>' +
-          '<input class="cs-lookup" data-row="' + rowId + '" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off">' +
-          '<div class="cs-lookup-results" data-row="' + rowId + '"></div>' +
-          '<div class="cs-our-pricing" data-row="' + rowId + '"></div>' +
-        '</div>' +
-        '<div class="stone-fields-grid">' +
-          '<div class="field"><label>Shape</label><input class="cs-shape" data-row="' + rowId + '" list="shapeOptions" placeholder="e.g. Round" required></div>' +
-          '<div class="field"><label>Carat</label><input class="cs-carat" data-row="' + rowId + '" type="text" placeholder="e.g. 2.15" required></div>' +
-          '<div class="field"><label>Color</label><input class="cs-color" data-row="' + rowId + '" placeholder="e.g. F" required></div>' +
-          '<div class="field"><label>Clarity</label><input class="cs-clarity" data-row="' + rowId + '" placeholder="e.g. VS1"></div>' +
-          '<div class="field"><label>Cut</label><input class="cs-cut" data-row="' + rowId + '" placeholder="e.g. Excellent"></div>' +
-          '<div class="field"><label>Certificate</label><input class="cs-cert" data-row="' + rowId + '" placeholder="e.g. GIA 2141567890"></div>' +
-          '<div class="cs-price-fields" data-row-price="' + rowId + '">' +
-            '<div class="field"><label>Price type</label><select class="cs-priceType" data-row="' + rowId + '">' +
-              '<option value="per_carat">Rate ($ per carat)</option>' +
-              '<option value="total">Amt (flat total $)</option>' +
-              '<option value="back">Back (% off Rapaport)</option>' +
-            '</select></div>' +
-            '<div class="field"><label class="cs-price-label" data-row="' + rowId + '">Asking price (USD)</label>' +
-              '<input class="cs-price" data-row="' + rowId + '" type="number" step="0.01"></div>' +
-          '</div>' +
+        '<div class="field wide"><label>Link one of our stones (optional)</label>' +
+          '<input class="cs-lookup" data-row="' + rowId + '" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>' +
+        '<div class="cs-lookup-results" data-row="' + rowId + '"></div>' +
+        '<div class="cs-our-pricing" data-row="' + rowId + '"></div>' +
+        '<div class="field"><label>Shape</label><input class="cs-shape" data-row="' + rowId + '" list="shapeOptions" placeholder="e.g. Round" required></div>' +
+        '<div class="field"><label>Carat</label><input class="cs-carat" data-row="' + rowId + '" type="text" placeholder="e.g. 2.15" required></div>' +
+        '<div class="field"><label>Color</label><input class="cs-color" data-row="' + rowId + '" placeholder="e.g. F" required></div>' +
+        '<div class="field"><label>Clarity</label><input class="cs-clarity" data-row="' + rowId + '" placeholder="e.g. VS1"></div>' +
+        '<div class="field"><label>Cut</label><input class="cs-cut" data-row="' + rowId + '" placeholder="e.g. Excellent"></div>' +
+        '<div class="field"><label>Certificate</label><input class="cs-cert" data-row="' + rowId + '" placeholder="e.g. GIA 2141567890"></div>' +
+        '<div class="stone-row-price" data-row-price="' + rowId + '">' +
+          '<div class="field"><label>Price type</label><select class="cs-priceType" data-row="' + rowId + '">' +
+            '<option value="per_carat">Rate ($ per carat)</option>' +
+            '<option value="total">Amt (flat total $)</option>' +
+            '<option value="back">Back (% off Rapaport)</option>' +
+          '</select></div>' +
+          '<div class="field"><label class="cs-price-label" data-row="' + rowId + '">Asking price (USD)</label>' +
+            '<input class="cs-price" data-row="' + rowId + '" type="number" step="0.01"></div>' +
         '</div>' +
       '</div>';
   }
@@ -1897,7 +1907,7 @@
     renumberStoneRows();
     syncStoneRowPriceLabel(rowId);
     var rowEl = document.querySelector('.stone-row[data-row-id="' + rowId + '"]');
-    rowEl.querySelector(".cs-price-fields").hidden = document.querySelector("input[name='priceMode']:checked").value === "combined";
+    rowEl.querySelector(".stone-row-price").hidden = document.querySelector("input[name='priceMode']:checked").value === "combined";
     updateOfferSummary();
   }
 
@@ -1912,7 +1922,7 @@
   function syncPriceModeUI() {
     var isCombined = document.querySelector("input[name='priceMode']:checked").value === "combined";
     document.getElementById("combinedPriceBlock").hidden = !isCombined;
-    document.querySelectorAll("#stoneRows .cs-price-fields").forEach(function (el) { el.hidden = isCombined; });
+    document.querySelectorAll("#stoneRows .stone-row-price").forEach(function (el) { el.hidden = isCombined; });
     syncCombinedPriceLabel();
     updateOfferSummary();
   }
@@ -2038,14 +2048,6 @@
   });
 
   document.getElementById("stoneRows").addEventListener("click", function (e) {
-    var toggleBtn = e.target.closest("[data-toggle-lookup]");
-    if (toggleBtn) {
-      var toggleRowId = toggleBtn.getAttribute("data-toggle-lookup");
-      var panel = document.querySelector('.cs-lookup-panel[data-row="' + toggleRowId + '"]');
-      panel.hidden = false;
-      toggleBtn.hidden = true;
-      return;
-    }
     var lookupBtn = e.target.closest("[data-lookup-stone]");
     if (lookupBtn) {
       var rowId = lookupBtn.getAttribute("data-row");
