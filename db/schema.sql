@@ -62,10 +62,18 @@ create table if not exists offers (
   notes             text default '',
   thread            jsonb not null default '[]'::jsonb,
   matched_stones    jsonb not null default '[]'::jsonb,
+  -- One client offer can bundle several stones together (added via "+ Add another
+  -- stone" in the New Offer form). Empty for an ordinary single-stone offer, in
+  -- which case the shape/carat/.../price columns above are the one stone's data,
+  -- same as before this column existed. When it holds 2+ entries, each has its
+  -- own shape/carat/color/clarity/cut/cert/priceType/price/matchedStone, and the
+  -- top-level columns just mirror the first entry as a fallback for old code that
+  -- doesn't know about this column.
+  stones            jsonb not null default '[]'::jsonb,
   unread            boolean not null default true,
   created_by_office text,
   version           integer not null default 1,
-  batch_id          uuid, -- set when created together with other offers via "add multiple stones at once"
+  batch_id          uuid, -- legacy: earlier "batch" offers were one row per stone sharing this id; unused by new inserts, kept for existing rows
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );

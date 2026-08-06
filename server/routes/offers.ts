@@ -1,7 +1,6 @@
 import { Router } from "express";
 import * as XLSX from "xlsx";
-import crypto from "node:crypto";
-import { sql, withTransaction } from "../../lib/db.js";
+import { sql } from "../../lib/db.js";
 import { rowToOffer } from "../../lib/mappers.js";
 import { resolveOrCreateClient } from "../../lib/clients.js";
 import { compareOfferPrice } from "../../lib/priceCompare.js";
@@ -20,6 +19,19 @@ function formatThreadForExport(thread: ThreadMessage[] | null | undefined): stri
     const price = m.price != null ? ` [${m.price}]` : "";
     return `${ts} - ${who}: ${m.message}${price}`;
   }).join("\n");
+}
+
+interface StoneEntry { shape: string; carat: string; priceType: string; price: number; matchedStone: MatchedStone | null }
+
+/** Mirrors the frontend's effectiveValue() per-stone math (public/index.html) —
+ *  used so a multi-stone offer's export row totals what the app shows, since
+ *  compareOfferPrice only knows how to compare a single stone against a single ref. */
+function stoneEffectiveValue(s: StoneEntry): number {
+  const carat = parseFloat(s.carat) || 1;
+  if (s.priceType === "total") return s.price;
+  if (s.priceType === "per_carat") return s.price * carat;
+  if (s.priceType === "back" && s.matchedStone?.rapRate) return s.matchedStone.rapRate * (1 + s.price / 100) * carat;
+  return 0;
 }
 
 router.get("/", async (_req, res) => {
@@ -43,6 +55,22 @@ router.get("/export", requireAdmin, async (_req, res) => {
   ];
 
   const body = rows.map((r: any) => {
+    const stones = (r.stones ?? []) as StoneEntry[];
+    if (stones.length > 1) {
+      // Multi-stone offer: compareOfferPrice only compares one stone against one ref,
+      // so a mixed bag of stones just gets a total instead of a per-stone discount/rate breakdown.
+      const totalCarat = stones.reduce((sum, s) => sum + (parseFloat(s.carat) || 0), 0);
+      const totalValue = stones.reduce((sum, s) => sum + stoneEffectiveValue(s), 0);
+      return [
+        r.entity_name || "", r.country || "", r.type, r.status, r.priority ? "Yes" : "No",
+        `${stones.length} stones: ${stones.map((s) => `${s.shape} ${s.carat}ct`).join(", ")}`,
+        Number(totalCarat.toFixed(2)), "", "", "", "",
+        r.channel || "", r.contact || "", "total", Number(totalValue.toFixed(2)),
+        "", "", "", "", "", "", "", "", "", "",
+        r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || "",
+        formatThreadForExport(r.thread)
+      ];
+    }
     const cmp = compareOfferPrice({ type: r.type, priceType: r.price_type, price: Number(r.price), carat: r.carat, matchedStones: r.matched_stones });
     return [
       r.entity_name || "", r.country || "", r.type, r.status, r.priority ? "Yes" : "No",
@@ -74,10 +102,13 @@ router.get("/export", requireAdmin, async (_req, res) => {
     .send(buffer);
 });
 
-// One client, one or more stones in a single submission — each stone (and its
-// already-resolved price/priceType, computed client-side whether the user
-// picked "different price per stone" or "one combined price") becomes its own
-// offer row, sharing a batch_id purely for traceability.
+// One client, one or more stones in a single submission — all stones land in a
+// single offer row. With exactly one stone this is indistinguishable from a
+// plain single-stone offer (the legacy shape/carat/.../price columns carry
+// that one stone's data and `stones` stays empty). With more than one, those
+// legacy columns mirror the first stone (so any code that doesn't know about
+// `stones` yet still degrades to something sensible) and the full list lives
+// in the `stones` jsonb column — see rowToOffer/renderDetail's multi-stone branch.
 router.post("/batch", blockSuperadmin, async (req, res) => {
   const body = (req.body ?? {}) as {
     clientName?: string; contact?: string; channel?: string; type?: string; notes?: string; priority?: boolean;
@@ -101,50 +132,54 @@ router.post("/batch", blockSuperadmin, async (req, res) => {
   }
 
   const clientId = await resolveOrCreateClient(clientName);
-  const batchId = crypto.randomUUID();
   const createdByOffice = req.user!.name;
   const createdAt = new Date().toISOString();
 
-  const createdRows = await withTransaction(async (txSql) => {
-    const rows: any[] = [];
-    for (const s of stones) {
-      const shape = String(s.shape ?? ""), carat = String(s.carat ?? ""), color = String(s.color ?? ""), clarity = String(s.clarity ?? "");
-      const initialMessage: ThreadMessage = {
-        author: "client", ts: createdAt,
-        message: `${type === "sell" ? "New stone offered: " : "New requirement: "}${shape} ${carat}ct, ${color}/${clarity || "—"}.`
-      };
-      const matchedStones = s.matchedStone ? [s.matchedStone] : [];
-      const inserted = await txSql`
-        insert into offers (
-          client_id, contact, channel, type, shape, carat, color, clarity, cut, cert,
-          price_type, price, priority, status, notes, thread, matched_stones, unread, created_by_office, batch_id
-        ) values (
-          ${clientId}, ${String(body.contact ?? "")}, ${String(body.channel ?? "")}, ${type},
-          ${shape}, ${carat}, ${color}, ${clarity}, ${String(s.cut ?? "")}, ${String(s.cert ?? "")},
-          ${s.priceType}, ${Number(s.price) || 0}, ${!!body.priority}, 'new', ${String(body.notes ?? "")},
-          ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, ${createdByOffice}, ${batchId}
-        )
-        returning *
-      `;
-      rows.push(inserted[0]);
-    }
-    return rows;
-  });
+  const stonesJson = stones.map((s) => ({
+    shape: String(s.shape ?? ""), carat: String(s.carat ?? ""), color: String(s.color ?? ""), clarity: String(s.clarity ?? ""),
+    cut: String(s.cut ?? ""), cert: String(s.cert ?? ""), priceType: s.priceType, price: Number(s.price) || 0,
+    matchedStone: s.matchedStone ?? null
+  }));
+  const first = stonesJson[0];
+  const matchedStones = stonesJson.filter((s) => s.matchedStone).map((s) => s.matchedStone);
+  const stoneList = stonesJson.map((s) => `${s.shape} ${s.carat}ct`).join(", ");
+  const initialMessage: ThreadMessage = {
+    author: "client", ts: createdAt,
+    message: stonesJson.length > 1
+      ? `${type === "sell" ? "New stones offered: " : "New requirements: "}${stonesJson.length} stones — ${stoneList}.`
+      : `${type === "sell" ? "New stone offered: " : "New requirement: "}${first.shape} ${first.carat}ct, ${first.color}/${first.clarity || "—"}.`
+  };
+
+  const inserted = await sql`
+    insert into offers (
+      client_id, contact, channel, type, shape, carat, color, clarity, cut, cert,
+      price_type, price, priority, status, notes, thread, matched_stones, stones, unread, created_by_office
+    ) values (
+      ${clientId}, ${String(body.contact ?? "")}, ${String(body.channel ?? "")}, ${type},
+      ${first.shape}, ${first.carat}, ${first.color}, ${first.clarity}, ${first.cut}, ${first.cert},
+      ${first.priceType}, ${first.price}, ${!!body.priority}, 'new', ${String(body.notes ?? "")},
+      ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)},
+      ${stonesJson.length > 1 ? JSON.stringify(stonesJson) : "[]"}, true, ${createdByOffice}
+    )
+    returning *
+  `;
+  const offer = rowToOffer(inserted[0]);
 
   const clientRow = await sql`select entity_name from clients where id = ${clientId}`;
   const entityName = (clientRow[0]?.entity_name as string) || "client";
   await sql`
     insert into notifications (type, offer_id, text)
-    values ('new_offer', ${createdRows[0].id}, ${
-      "New " + (stones.length > 1 ? `batch of ${stones.length} offers` : "offer") + " from " + entityName
+    values ('new_offer', ${offer.id}, ${
+      "New " + (stonesJson.length > 1 ? `offer (${stonesJson.length} stones)` : "offer") + " from " + entityName
     })
   `;
   await logActivity({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_created",
-    detail: `${entityName} — ${stones.length > 1 ? `batch of ${stones.length} stones` : `${stones[0].shape} ${stones[0].carat}ct`}`
+    detail: `${entityName} — ${stonesJson.length > 1 ? `${stonesJson.length} stones (${stoneList})` : `${first.shape} ${first.carat}ct`}`,
+    offerId: offer.id
   });
 
-  res.status(201).json({ offers: createdRows.map(rowToOffer) });
+  res.status(201).json({ offer });
 });
 
 router.post("/", blockSuperadmin, async (req, res) => {

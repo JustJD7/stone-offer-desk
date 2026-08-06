@@ -416,14 +416,22 @@
   .stone-links-row { display: flex; gap: 8px; margin-top: 10px; grid-column: 1/-1; }
 
   /* ---------- Multi-stone create form ---------- */
+  #modalOverlay .modal { max-width: 780px; }
   .stone-section { display: contents; }
   .stone-row {
-    grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
-    border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 4px; background: var(--surface-2);
+    grid-column: 1/-1; display: flex; flex-direction: column; gap: 6px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 4px; background: var(--surface-2);
   }
-  .stone-row-head { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; margin-bottom: -2px; }
+  .stone-row-head { display: flex; align-items: center; justify-content: space-between; }
   .stone-row-head b { font-size: 12.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-2); }
-  .stone-row-price { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 2px; }
+  .stone-fields-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; }
+  .stone-fields-grid .field { margin: 0; }
+  .cs-price-fields { display: contents; }
+  .stone-lookup-toggle {
+    align-self: flex-start; background: none; border: none; color: var(--accent); font-size: 11.5px;
+    font-weight: 700; letter-spacing: .2px; cursor: pointer; padding: 2px 0; text-decoration: underline;
+  }
+  .cs-lookup-panel { display: flex; flex-direction: column; gap: 6px; }
 
   /* ---------- Superadmin: oversight-only, no offer edits ---------- */
   body.role-superadmin #newOfferBtn,
@@ -1051,7 +1059,18 @@
     }
     return null;
   }
+  function isMultiStone(o) { return !!(o.stones && o.stones.length > 1); }
+  function stoneEffectiveValue(priceType, price, carat, ref) {
+    carat = parseFloat(carat) || 1;
+    if (priceType === "total") return price;
+    if (priceType === "per_carat") return price * carat;
+    if (priceType === "back") return (ref && ref.rapRate) ? ref.rapRate * (1 + price / 100) * carat : 0;
+    return 0;
+  }
   function effectiveValue(o) {
+    if (isMultiStone(o)) {
+      return o.stones.reduce(function (sum, s) { return sum + stoneEffectiveValue(s.priceType, s.price, s.carat, s.matchedStone); }, 0);
+    }
     var carat = parseFloat(o.carat) || 1;
     if (o.priceType === "total") return o.price;
     if (o.priceType === "per_carat") return o.price * carat;
@@ -1264,7 +1283,8 @@
       if (typeF !== "all" && o.type !== typeF) return false;
       if (q) {
         var client = clientById(o.clientId);
-        var hay = ((client ? client.entityName : "") + " " + o.shape + " " + o.notes + " " + o.cert).toLowerCase();
+        var stoneBits = isMultiStone(o) ? o.stones.map(function (s) { return s.shape + " " + s.cert; }).join(" ") : o.shape + " " + o.cert;
+        var hay = ((client ? client.entityName : "") + " " + stoneBits + " " + o.notes).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
@@ -1283,11 +1303,16 @@
     var client = clientById(o.clientId);
     var name = client ? client.entityName : "(unknown client)";
     var draggable = currentUser && currentUser.role === "superadmin" ? "false" : "true";
+    var multi = isMultiStone(o);
+    var specLine = multi
+      ? o.stones.length + " stones · " + o.stones.reduce(function (sum, s) { return sum + (parseFloat(s.carat) || 0); }, 0).toFixed(2) + "ct total"
+      : esc(o.shape) + " · " + esc(o.carat) + "ct · " + esc(o.color) + "/" + esc(o.clarity);
+    var priceLine = multi ? money(effectiveValue(o)) + " total" : priceDisplay(o);
     return '<div class="pipeline-card' + (o.unread ? " unread-blink" : "") + '" draggable="' + draggable + '" data-id="' + o.id + '">' +
       (o.unread ? '<span class="card-unread-dot" title="Unread activity"></span>' : "") +
       '<div class="pipeline-card-top"><span class="pipeline-card-client">' + esc(name) + '</span>' + (o.priority ? '<span class="pill pill-priority">High</span>' : "") + "</div>" +
-      '<div class="pipeline-card-spec">' + esc(o.shape) + " · " + esc(o.carat) + "ct · " + esc(o.color) + "/" + esc(o.clarity) + "</div>" +
-      '<div class="pipeline-card-bottom">' + typePill(o.type) + '<span class="offer-price">' + priceDisplay(o) + "</span></div>" +
+      '<div class="pipeline-card-spec">' + specLine + "</div>" +
+      '<div class="pipeline-card-bottom">' + typePill(o.type) + '<span class="offer-price">' + priceLine + "</span></div>" +
     "</div>";
   }
 
@@ -1321,6 +1346,23 @@
     return links.length ? '<div class="stone-links-row">' + links.join("") + "</div>" : "";
   }
 
+  /** One row per stone in a combined multi-stone offer — replaces the single
+   *  Shape/Carat/.../price-block layout used for an ordinary one-stone offer. */
+  function stonesTableHtml(o) {
+    var rows = o.stones.map(function (s, i) {
+      var carat = parseFloat(s.carat) || 0;
+      var ref = s.matchedStone;
+      var total = stoneEffectiveValue(s.priceType, s.price, carat, ref);
+      return "<tr><td>" + (i + 1) + "</td><td>" + esc(s.shape) + '</td><td class="num">' + carat.toFixed(2) + "</td><td>" +
+        esc(s.color) + "/" + esc(s.clarity || "—") + "</td><td>" + esc(s.cut || "—") + '</td><td class="mono">' + esc(s.cert || "—") + "</td><td>" +
+        formatPriceByType(s.priceType, s.price) + (ref ? ' <span class="mono" style="opacity:.6;">(' + esc(ref.stoneId) + ")</span>" : "") +
+        '</td><td class="num">' + money2(total) + "</td></tr>";
+    }).join("");
+    return '<div class="table-scroll"><table class="data-table stones-detail-table">' +
+      '<thead><tr><th>#</th><th>Shape</th><th class="num">Carat</th><th>Color/Clarity</th><th>Cut</th><th>Cert</th><th>Price</th><th class="num">Total</th></tr></thead>' +
+      "<tbody>" + rows + "</tbody></table></div>";
+  }
+
   function renderDetail() {
     var panel = document.getElementById("detailPanel");
     var o = offers.find(function (x) { return x.id === selectedId; });
@@ -1329,7 +1371,8 @@
       return;
     }
     var client = clientById(o.clientId) || { entityName: "(unknown client)", country: "", stockCategory: "" };
-    var ref = primaryMatchedStone(o);
+    var multi = isMultiStone(o);
+    var ref = multi ? null : primaryMatchedStone(o);
 
     var stepper = STATUS_ORDER.map(function (s) {
       var idx = STATUS_ORDER.indexOf(s), curIdx = STATUS_ORDER.indexOf(o.status);
@@ -1337,38 +1380,51 @@
       return '<button type="button" class="' + cls + '" data-step="' + s + '" data-action="status" data-id="' + o.id + '">' + STATUS_LABELS[s] + "</button>";
     }).join("");
 
-    var specs = [["Shape", o.shape], ["Carat", o.carat + " ct"], ["Color", o.color], ["Clarity", o.clarity || "—"], ["Cut", o.cut || "—"], ["Channel", o.channel]]
-      .map(function (p) { return '<div class="spec-item"><div class="spec-label">' + p[0] + '</div><div class="spec-value">' + esc(p[1]) + "</div></div>"; })
-      .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
+    var specGridHtml = "";
+    if (!multi) {
+      var specs = [["Shape", o.shape], ["Carat", o.carat + " ct"], ["Color", o.color], ["Clarity", o.clarity || "—"], ["Cut", o.cut || "—"], ["Channel", o.channel]]
+        .map(function (p) { return '<div class="spec-item"><div class="spec-label">' + p[0] + '</div><div class="spec-value">' + esc(p[1]) + "</div></div>"; })
+        .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
+      specGridHtml = '<div class="spec-grid">' + specs + "</div>";
+    }
+
+    var pricePlaceholder = multi ? "Counter price ($ total)" :
+      (o.priceType === "back" ? "Counter Back % (e.g. -38)" : (o.priceType === "per_carat" ? "Counter price ($/ct)" : "Counter price ($ total)"));
 
     var thread = (o.thread || []).map(function (m) {
+      var priceHtml = m.price != null ? '<div class="msg-price">' + (multi ? money(m.price) : formatPriceByType(o.priceType, m.price)) + "</div>" : "";
       if (m.author !== "company") {
         return '<div class="msg msg-client"><div class="msg-meta"><span>Client</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
-          "<div>" + esc(m.message) + "</div>" +
-          (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
+          "<div>" + esc(m.message) + "</div>" + priceHtml + "</div>";
       }
       var mine = currentUser && m.by && m.by === currentUser.name;
       var who = mine ? "You" : (m.by || "Company");
       return '<div class="msg ' + (mine ? "msg-mine" : "msg-theirs") + '"><div class="msg-meta"><span>' + esc(who) + '</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
-        "<div>" + esc(m.message) + "</div>" +
-        (m.price != null ? '<div class="msg-price">' + formatPriceByType(o.priceType, m.price) + "</div>" : "") + "</div>";
+        "<div>" + esc(m.message) + "</div>" + priceHtml + "</div>";
     }).join("");
 
-    var effRate = computeEffectiveRate(o, ref);
-    var compareHtml = buildCompareTable(o, ref);
-
-    var pricePlaceholder = o.priceType === "back" ? "Counter Back % (e.g. -38)" : (o.priceType === "per_carat" ? "Counter price ($/ct)" : "Counter price ($ total)");
+    var priceBlockHtml;
+    if (multi) {
+      var totalCarat = o.stones.reduce(function (sum, s) { return sum + (parseFloat(s.carat) || 0); }, 0);
+      priceBlockHtml = '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' +
+        (o.type === "sell" ? "Total Asking Price" : "Total Client Budget") + '</div><div class="price-main">' + money(effectiveValue(o)) + "</div></div>" +
+        '<div class="price-note">' + o.stones.length + " stones · " + totalCarat.toFixed(2) + "ct total</div></div>" + stonesTableHtml(o) + "</div>";
+    } else {
+      var effRate = computeEffectiveRate(o, ref);
+      var compareHtml = buildCompareTable(o, ref);
+      priceBlockHtml = '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' + (o.type === "sell" ? "Asking Price" : "Client Budget") + '</div><div class="price-main">' + priceDisplay(o) + "</div></div><div class=\"price-note\">" +
+        (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + stoneLinksHtml(ref) + "</div>";
+    }
 
     panel.innerHTML =
       '<div class="detail-scroll">' +
         '<div class="detail-header"><div class="detail-header-top"><div><h2>' + esc(client.entityName) + "</h2><div class=\"detail-sub\">" +
           (client.country ? esc(client.country) + " · " : "") + (client.stockCategory ? esc(client.stockCategory) + " · " : "") +
           (o.contact ? esc(o.contact) + " · " : "") + "via " + esc(o.channel) + "</div></div></div>" +
-          '<div class="detail-badges">' + typePill(o.type) + statusPill(o.status) + (o.priority ? '<span class="pill pill-priority">High priority</span>' : "") + "</div></div>" +
+          '<div class="detail-badges">' + typePill(o.type) + statusPill(o.status) + (multi ? '<span class="pill">' + o.stones.length + " stones</span>" : "") + (o.priority ? '<span class="pill pill-priority">High priority</span>' : "") + "</div></div>" +
         '<div class="stepper">' + stepper + "</div>" +
-        '<div class="spec-grid">' + specs + "</div>" +
-        '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' + (o.type === "sell" ? "Asking Price" : "Client Budget") + '</div><div class="price-main">' + priceDisplay(o) + "</div></div><div class=\"price-note\">" +
-          (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + stoneLinksHtml(ref) + "</div>" +
+        specGridHtml +
+        priceBlockHtml +
         (o.notes ? '<div class="notes-block"><div class="spec-label">Notes</div>' + esc(o.notes) + "</div>" : "") +
         '<div class="thread-block"><div class="thread-title">Negotiation Thread</div><div class="thread">' + thread + "</div>" +
           '<form class="msg-form" data-id="' + o.id + '">' +
@@ -1800,24 +1856,28 @@
     return '' +
       '<div class="stone-row" data-row-id="' + rowId + '">' +
         '<div class="stone-row-head"><b>Stone</b><button type="button" class="btn btn-sm btn-ghost" data-remove-row="' + rowId + '">Remove</button></div>' +
-        '<div class="field wide"><label>Link one of our stones (optional)</label>' +
-          '<input class="cs-lookup" data-row="' + rowId + '" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>' +
-        '<div class="cs-lookup-results" data-row="' + rowId + '"></div>' +
-        '<div class="cs-our-pricing" data-row="' + rowId + '"></div>' +
-        '<div class="field"><label>Shape</label><input class="cs-shape" data-row="' + rowId + '" list="shapeOptions" placeholder="e.g. Round" required></div>' +
-        '<div class="field"><label>Carat</label><input class="cs-carat" data-row="' + rowId + '" type="text" placeholder="e.g. 2.15" required></div>' +
-        '<div class="field"><label>Color</label><input class="cs-color" data-row="' + rowId + '" placeholder="e.g. F" required></div>' +
-        '<div class="field"><label>Clarity</label><input class="cs-clarity" data-row="' + rowId + '" placeholder="e.g. VS1"></div>' +
-        '<div class="field"><label>Cut</label><input class="cs-cut" data-row="' + rowId + '" placeholder="e.g. Excellent"></div>' +
-        '<div class="field"><label>Certificate</label><input class="cs-cert" data-row="' + rowId + '" placeholder="e.g. GIA 2141567890"></div>' +
-        '<div class="stone-row-price" data-row-price="' + rowId + '">' +
-          '<div class="field"><label>Price type</label><select class="cs-priceType" data-row="' + rowId + '">' +
-            '<option value="per_carat">Rate ($ per carat)</option>' +
-            '<option value="total">Amt (flat total $)</option>' +
-            '<option value="back">Back (% off Rapaport)</option>' +
-          '</select></div>' +
-          '<div class="field"><label class="cs-price-label" data-row="' + rowId + '">Asking price (USD)</label>' +
-            '<input class="cs-price" data-row="' + rowId + '" type="number" step="0.01"></div>' +
+        '<button type="button" class="stone-lookup-toggle" data-toggle-lookup="' + rowId + '">🔍 Link one of our inventory stones (optional)</button>' +
+        '<div class="cs-lookup-panel" data-row="' + rowId + '" hidden>' +
+          '<input class="cs-lookup" data-row="' + rowId + '" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off">' +
+          '<div class="cs-lookup-results" data-row="' + rowId + '"></div>' +
+          '<div class="cs-our-pricing" data-row="' + rowId + '"></div>' +
+        '</div>' +
+        '<div class="stone-fields-grid">' +
+          '<div class="field"><label>Shape</label><input class="cs-shape" data-row="' + rowId + '" list="shapeOptions" placeholder="e.g. Round" required></div>' +
+          '<div class="field"><label>Carat</label><input class="cs-carat" data-row="' + rowId + '" type="text" placeholder="e.g. 2.15" required></div>' +
+          '<div class="field"><label>Color</label><input class="cs-color" data-row="' + rowId + '" placeholder="e.g. F" required></div>' +
+          '<div class="field"><label>Clarity</label><input class="cs-clarity" data-row="' + rowId + '" placeholder="e.g. VS1"></div>' +
+          '<div class="field"><label>Cut</label><input class="cs-cut" data-row="' + rowId + '" placeholder="e.g. Excellent"></div>' +
+          '<div class="field"><label>Certificate</label><input class="cs-cert" data-row="' + rowId + '" placeholder="e.g. GIA 2141567890"></div>' +
+          '<div class="cs-price-fields" data-row-price="' + rowId + '">' +
+            '<div class="field"><label>Price type</label><select class="cs-priceType" data-row="' + rowId + '">' +
+              '<option value="per_carat">Rate ($ per carat)</option>' +
+              '<option value="total">Amt (flat total $)</option>' +
+              '<option value="back">Back (% off Rapaport)</option>' +
+            '</select></div>' +
+            '<div class="field"><label class="cs-price-label" data-row="' + rowId + '">Asking price (USD)</label>' +
+              '<input class="cs-price" data-row="' + rowId + '" type="number" step="0.01"></div>' +
+          '</div>' +
         '</div>' +
       '</div>';
   }
@@ -1837,7 +1897,7 @@
     renumberStoneRows();
     syncStoneRowPriceLabel(rowId);
     var rowEl = document.querySelector('.stone-row[data-row-id="' + rowId + '"]');
-    rowEl.querySelector(".stone-row-price").hidden = document.querySelector("input[name='priceMode']:checked").value === "combined";
+    rowEl.querySelector(".cs-price-fields").hidden = document.querySelector("input[name='priceMode']:checked").value === "combined";
     updateOfferSummary();
   }
 
@@ -1852,7 +1912,7 @@
   function syncPriceModeUI() {
     var isCombined = document.querySelector("input[name='priceMode']:checked").value === "combined";
     document.getElementById("combinedPriceBlock").hidden = !isCombined;
-    document.querySelectorAll("#stoneRows .stone-row-price").forEach(function (el) { el.hidden = isCombined; });
+    document.querySelectorAll("#stoneRows .cs-price-fields").forEach(function (el) { el.hidden = isCombined; });
     syncCombinedPriceLabel();
     updateOfferSummary();
   }
@@ -1935,10 +1995,10 @@
       '</div></div>';
   }
 
-  async function createOffersBatchOnServer(payload) {
+  async function createOfferBatchOnServer(payload) {
     var data = await api("POST", "/api/offers/batch", payload);
-    Array.prototype.unshift.apply(offers, data.offers);
-    return data.offers;
+    offers.unshift(data.offer);
+    return data.offer;
   }
 
   document.getElementById("addStoneRowBtn").addEventListener("click", function () { newStoneRow(); });
@@ -1978,6 +2038,14 @@
   });
 
   document.getElementById("stoneRows").addEventListener("click", function (e) {
+    var toggleBtn = e.target.closest("[data-toggle-lookup]");
+    if (toggleBtn) {
+      var toggleRowId = toggleBtn.getAttribute("data-toggle-lookup");
+      var panel = document.querySelector('.cs-lookup-panel[data-row="' + toggleRowId + '"]');
+      panel.hidden = false;
+      toggleBtn.hidden = true;
+      return;
+    }
     var lookupBtn = e.target.closest("[data-lookup-stone]");
     if (lookupBtn) {
       var rowId = lookupBtn.getAttribute("data-row");
@@ -2150,11 +2218,11 @@
         if (linkedStoneForNewOffer) fields.matchedStonesAdd = toChipShape(linkedStoneForNewOffer);
         offer = await patchOfferOnServer(editingOfferId, fields);
       } else {
-        // Create mode: one or more stones from inventory, priced separately or via one shared/averaged price.
+        // Create mode: one or more stones from inventory, priced separately or via one shared/averaged
+        // price — all bundled into a single combined offer (see isMultiStone()/renderDetail()).
         var stones = collectStoneRows();
         if (!stones.length) { alert("Add at least one stone."); return; }
-        var created = await createOffersBatchOnServer(Object.assign({}, common, { stones: stones }));
-        offer = created[0];
+        offer = await createOfferBatchOnServer(Object.assign({}, common, { stones: stones }));
       }
       await loadClientsFromServer();
       populateClientDatalist();
