@@ -74,6 +74,16 @@ create table if not exists offers (
   created_by_office text,
   version           integer not null default 1,
   batch_id          uuid, -- legacy: earlier "batch" offers were one row per stone sharing this id; unused by new inserts, kept for existing rows
+  -- Who has opened this offer's detail view — [{ id, name, seenAt }], deduped per user
+  -- (each open updates that user's seenAt rather than appending a new entry).
+  seen_by           jsonb not null default '[]'::jsonb,
+  -- Captured when a deal is marked Accepted: the final negotiated price, separate from
+  -- the original asking price so the negotiation history above isn't overwritten.
+  sold_price_type   text check (sold_price_type in ('per_carat', 'total', 'back')),
+  sold_price        numeric,
+  sold_at           timestamptz,
+  -- Captured when a deal is marked Rejected.
+  rejection_reason  text,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );

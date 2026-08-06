@@ -32,6 +32,7 @@
     --type-sell-soft: #DCEEEA;
     --type-buy: #7C3F86;
     --type-buy-soft: #F1E1F1;
+    --client-color: #C1590C;
     --shadow: 0 1px 2px rgba(30,26,16,.06), 0 8px 24px -12px rgba(30,26,16,.18);
     --font-display: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
     --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -49,6 +50,7 @@
       --status-rejected: #E2876F; --status-rejected-soft: #3B241D;
       --type-sell: #5FC7B8; --type-sell-soft: #1B3733;
       --type-buy: #D699DD; --type-buy-soft: #37243A;
+      --client-color: #F0975A;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
     }
   }
@@ -63,6 +65,7 @@
     --status-rejected: #E2876F; --status-rejected-soft: #3B241D;
     --type-sell: #5FC7B8; --type-sell-soft: #1B3733;
     --type-buy: #D699DD; --type-buy-soft: #37243A;
+    --client-color: #F0975A;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
   }
   :root[data-theme="light"] {
@@ -76,6 +79,7 @@
     --status-rejected: #AE3A26; --status-rejected-soft: #F6E2DD;
     --type-sell: #146B60; --type-sell-soft: #DCEEEA;
     --type-buy: #7C3F86; --type-buy-soft: #F1E1F1;
+    --client-color: #C1590C;
     --shadow: 0 1px 2px rgba(30,26,16,.06), 0 8px 24px -12px rgba(30,26,16,.18);
   }
 
@@ -276,7 +280,7 @@
   /* ---------- Detail drawer ---------- */
   .drawer-overlay { position: fixed; inset: 0; background: rgba(20,17,10,.4); display: none; z-index: 60; }
   .drawer-overlay.open { display: block; }
-  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(560px, 94vw); background: var(--surface); box-shadow: -8px 0 32px -12px rgba(0,0,0,.35); transform: translateX(100%); transition: transform .18s ease; display: flex; flex-direction: column; }
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(max(560px, 50vw), 94vw); background: var(--surface); box-shadow: -8px 0 32px -12px rgba(0,0,0,.35); transform: translateX(100%); transition: transform .18s ease; display: flex; flex-direction: column; }
   .drawer-overlay.open .drawer { transform: translateX(0); }
   .drawer-head { display: flex; justify-content: space-between; padding: 12px 16px 0; flex: none; }
   .detail-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -332,6 +336,11 @@
   .stones-detail-table td.good { color: var(--status-accepted); font-weight: 700; }
   .stones-detail-table td.bad { color: var(--status-rejected); font-weight: 700; }
   .stones-detail-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+  .stones-detail-table td.client-col { color: var(--client-color); font-weight: 600; }
+  .seen-row { padding: 8px 20px; font-size: 12px; color: var(--ink-muted); border-bottom: 1px solid var(--border); }
+  .sold-row, .reject-row { padding: 10px 20px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .sold-row { color: var(--status-accepted); font-weight: 600; }
+  .reject-row { color: var(--status-rejected); font-weight: 600; }
   .compare-table td.client { color: var(--accent-strong); font-weight: 600; }
 
   .notes-block { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink-2); }
@@ -542,7 +551,7 @@
       </div>
       <div class="panel">
         <div class="toolbar">
-          <input type="search" id="invSearch" placeholder="Search stone ID, shape, lab, location…">
+          <input type="search" id="invSearch" placeholder="Search stone ID, report no, shape, lab, location…">
           <select id="invShapeFilter"><option value="all">All shapes</option></select>
           <select id="invStatusFilter"><option value="all">All statuses</option></select>
           <select id="invSort">
@@ -614,6 +623,7 @@
       <div class="drawer-head">
         <div style="display:flex; gap:8px;">
           <button type="button" class="btn btn-ghost btn-sm" id="editOfferBtn">Edit Offer</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="exportOfferBtn">⬇ Export This Offer</button>
           <button type="button" class="btn btn-ghost btn-sm btn-danger" id="deleteOfferBtn">Delete Offer</button>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" id="drawerCloseBtn">Close ✕</button>
@@ -774,6 +784,50 @@
         <button type="button" class="btn btn-ghost btn-sm" id="stoneModalClose" aria-label="Close">Close</button>
       </div>
       <div class="modal-body" style="grid-template-columns:1fr; max-height:60vh; overflow-y:auto;" id="stoneModalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="acceptModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;">
+      <form id="acceptForm">
+        <div class="modal-header">
+          <h3>Mark as Accepted</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="acceptModalClose" aria-label="Close">Close</button>
+        </div>
+        <div class="modal-body" style="grid-template-columns:1fr;">
+          <div class="hint">Enter the final sold price agreed with the client — kept separate from the original asking price, and included in exports.</div>
+          <div class="field"><label for="af-priceType">Price type</label>
+            <select id="af-priceType">
+              <option value="per_carat">Rate ($ per carat)</option>
+              <option value="total">Amt (flat total $)</option>
+              <option value="back">Back (% off Rapaport)</option>
+            </select>
+          </div>
+          <div class="field"><label for="af-price">Sold price</label><input id="af-price" type="number" step="0.01" required></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="acceptModalCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Accepted</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="rejectModalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;">
+      <form id="rejectForm">
+        <div class="modal-header">
+          <h3>Mark as Rejected</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="rejectModalClose" aria-label="Close">Close</button>
+        </div>
+        <div class="modal-body" style="grid-template-columns:1fr;">
+          <div class="field"><label for="rf-reason">Reason</label><textarea id="rf-reason" required placeholder="Why is this deal being rejected?"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="rejectModalCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Rejected</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -1043,58 +1097,68 @@
     return out;
   }
 
-  /* ---- pricing: Rate ($/ct), Amt (flat $), or Back (% off Rapaport) ---- */
-  function primaryMatchedStone(o) { return (o.matchedStones && o.matchedStones[0]) || null; }
-  function computeEffectiveRate(o, ref) {
-    var carat = parseFloat(o.carat) || 1;
-    if (o.priceType === "per_carat") return o.price;
-    if (o.priceType === "total") return o.price / carat;
-    if (o.priceType === "back") {
-      var r = ref || primaryMatchedStone(o);
-      if (r && r.rapRate) return r.rapRate * (1 + o.price / 100);
-      return null;
-    }
-    return null;
-  }
+  /* ---- pricing: Rate ($/ct), Amt (flat $), or Back (% off Rapaport) ----
+     One shared model for both single- and multi-stone offers: stonesForOffer()
+     always returns an array (length 1 for an ordinary single-stone offer, built
+     from its legacy top-level fields), so every other pricing helper only has
+     to handle "a list of stones" and never branches on single-vs-multi itself. */
   function isMultiStone(o) { return !!(o.stones && o.stones.length > 1); }
-  function stoneEffectiveValue(priceType, price, carat, ref) {
+  function stonesForOffer(o) {
+    if (o.stones && o.stones.length) return o.stones;
+    return [{
+      shape: o.shape, carat: o.carat, color: o.color, clarity: o.clarity, cut: o.cut, cert: o.cert,
+      priceType: o.priceType, price: o.price, matchedStone: (o.matchedStones && o.matchedStones[0]) || null
+    }];
+  }
+  /** The client's price normalized into all three representations (back% off
+   *  Rap, rate/ct, flat amount) regardless of which one they actually quoted —
+   *  back%<->$ conversion needs a Rap reference (the linked inventory stone),
+   *  so back/rate/amount come back null when there isn't one and the client
+   *  didn't quote in $ terms directly. */
+  function clientMetrics(priceType, price, carat, ref) {
     carat = parseFloat(carat) || 1;
-    if (priceType === "total") return price;
-    if (priceType === "per_carat") return price * carat;
-    if (priceType === "back") return (ref && ref.rapRate) ? ref.rapRate * (1 + price / 100) * carat : 0;
-    return 0;
+    var rap = ref && ref.rapRate ? Number(ref.rapRate) : null;
+    var rate = null, amount = null, back = null;
+    if (priceType === "back") {
+      if (rap) { rate = rap * (1 + price / 100); amount = rate * carat; back = (1 - rate / rap) * 100; }
+    } else if (priceType === "per_carat") {
+      rate = price; amount = price * carat;
+      if (rap) back = (1 - rate / rap) * 100;
+    } else {
+      amount = price; rate = carat ? amount / carat : 0;
+      if (rap) back = (1 - rate / rap) * 100;
+    }
+    return { back: back, rate: rate, amount: amount };
+  }
+  /** Our own valuation of the linked inventory stone, same three representations. */
+  function ourMetrics(ref) {
+    if (!ref) return { back: null, rate: null, amount: null, rapRate: null, rapAmt: null };
+    var rate = ref.rate != null ? Number(ref.rate) : null;
+    var rap = ref.rapRate != null ? Number(ref.rapRate) : null;
+    var amount = ref.amt != null ? Number(ref.amt) : null;
+    var back = (rate != null && rap) ? (1 - rate / rap) * 100 : null;
+    return { back: back, rate: rate, amount: amount, rapRate: rap, rapAmt: ref.rapAmt != null ? Number(ref.rapAmt) : null };
   }
   function effectiveValue(o) {
-    if (isMultiStone(o)) {
-      return o.stones.reduce(function (sum, s) { return sum + stoneEffectiveValue(s.priceType, s.price, s.carat, s.matchedStone); }, 0);
-    }
-    var carat = parseFloat(o.carat) || 1;
-    if (o.priceType === "total") return o.price;
-    if (o.priceType === "per_carat") return o.price * carat;
-    var eff = computeEffectiveRate(o);
-    return eff != null ? eff * carat : 0;
+    return stonesForOffer(o).reduce(function (sum, s) {
+      return sum + (clientMetrics(s.priceType, s.price, s.carat, s.matchedStone).amount || 0);
+    }, 0);
   }
-  /** Profit to us on a stone linked to one of our inventory stones: what the
-   *  client's price comes to, minus what we value it at (our rate/amt). Positive
-   *  is a gain, negative is a loss. Returns null when there's no linked stone to
-   *  value against. */
-  function stoneProfit(priceType, price, carat, ref) {
-    if (!ref || !ref.rapRate) return null;
-    carat = parseFloat(carat) || 1;
-    var clientTotal = stoneEffectiveValue(priceType, price, carat, ref);
-    var ourTotal = ref.amt || ref.rate * carat;
-    return clientTotal - ourTotal;
-  }
+  /** Profit to us, summed across every stone that's linked to one of our
+   *  inventory stones: what the client's price comes to, minus what we value
+   *  it at. Positive is a gain, negative is a loss. Null when nothing in the
+   *  offer is linked, so callers can tell "no data" from "exactly zero". */
   function offerProfit(o) {
-    if (isMultiStone(o)) {
-      var total = null;
-      o.stones.forEach(function (s) {
-        var p = stoneProfit(s.priceType, s.price, s.carat, s.matchedStone);
-        if (p != null) total = (total || 0) + p;
-      });
-      return total;
-    }
-    return stoneProfit(o.priceType, o.price, o.carat, primaryMatchedStone(o));
+    var total = null;
+    stonesForOffer(o).forEach(function (s) {
+      var ref = s.matchedStone;
+      if (!ref || !ref.rapRate) return;
+      var client = clientMetrics(s.priceType, s.price, s.carat, ref);
+      var our = ourMetrics(ref);
+      if (client.amount == null || our.amount == null) return;
+      total = (total || 0) + (client.amount - our.amount);
+    });
+    return total;
   }
   function money2(n) { return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function signed(n, formatter) { return (n >= 0 ? "+" : "-") + formatter(Math.abs(n)); }
@@ -1117,52 +1181,6 @@
       "</div>" + stoneLinksHtml(stone) + "</div>";
   }
 
-  /** Full three-row comparison table (Discount / Rate / Total) — "Our Price"
-   *  is derived from the linked inventory stone (rate + Rap rate), "Client
-   *  Offer" is derived from whichever of Rate/Amt/Back the offer actually
-   *  used, normalized onto the same Rap-rate reference so all three price
-   *  types are directly comparable regardless of which one the client quoted. */
-  function buildCompareTable(o, ref) {
-    if (!ref || !ref.rapRate) return "";
-    var carat = parseFloat(o.carat) || 1;
-    var ourRate = ref.rate;
-    var ourRap = ref.rapRate;
-    var ourTotal = ref.amt || ourRate * carat;
-    var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
-
-    var clientRate, clientTotal, clientDisc;
-    if (o.priceType === "back") {
-      clientDisc = -o.price;
-      clientRate = ourRap * (1 + o.price / 100);
-      clientTotal = clientRate * carat;
-    } else if (o.priceType === "per_carat") {
-      clientRate = o.price;
-      clientTotal = clientRate * carat;
-      clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
-    } else {
-      clientTotal = o.price;
-      clientRate = clientTotal / carat;
-      clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
-    }
-
-    // One verdict drives all three rows' color — they're the same comparison in different units.
-    // Profit to us is the client's total minus our valuation; positive is a gain, negative a loss.
-    var favClass = (clientTotal - ourTotal) >= 0 ? "good" : "bad";
-
-    var rows = [];
-    if (ourDisc != null && clientDisc != null) {
-      rows.push(["Discount", ourDisc.toFixed(2) + "%", clientDisc.toFixed(2) + "%", signed(ourDisc - clientDisc, function (v) { return v.toFixed(2) + "%"; })]);
-    }
-    rows.push(["Rate/ct", money2(ourRate), money2(clientRate), signed(clientRate - ourRate, money2)]);
-    rows.push(["Total", money2(ourTotal), money2(clientTotal), signed(clientTotal - ourTotal, money2)]);
-
-    return '<table class="compare-table">' +
-      '<caption>Vs our stone ' + esc(ref.stoneId) + "</caption>" +
-      "<thead><tr><th></th><th>Our Price</th><th>Client Offer</th><th>Diff</th></tr></thead>" +
-      "<tbody>" + rows.map(function (r) {
-        return "<tr><td class=\"label\">" + r[0] + "</td><td>" + r[1] + '</td><td class="client">' + r[2] + '</td><td class="diff ' + favClass + '">' + r[3] + "</td></tr>";
-      }).join("") + "</tbody></table>";
-  }
   function priceDisplay(o) {
     if (o.priceType === "back") return (o.price >= 0 ? "+" : "") + o.price + "% off Rap";
     return o.priceType === "per_carat" ? money(o.price) + "/ct" : money(o.price) + " flat";
@@ -1366,7 +1384,14 @@
     }).join("");
   }
 
-  function toChipShape(stone) { return { stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity, rate: stone.rate, rapRate: stone.rapRate, amt: stone.amt, lab: stone.lab, imageLink: stone.imageLink, video: stone.video }; }
+  function toChipShape(stone) {
+    return {
+      stoneId: stone.stoneId, shape: stone.shape, weight: stone.weight, color: stone.color, clarity: stone.clarity,
+      cut: stone.cut, polish: stone.polish, symmetry: stone.symmetry, fluorescence: stone.fluorescence,
+      reportNo: stone.reportNo, back: stone.back, rate: stone.rate, rapRate: stone.rapRate, rapAmt: stone.rapAmt, amt: stone.amt,
+      lab: stone.lab, imageLink: stone.imageLink, video: stone.video
+    };
+  }
   function stoneLinksHtml(stone) {
     if (!stone) return "";
     var links = [];
@@ -1385,51 +1410,74 @@
     return links.length ? links.join(" ") : "—";
   }
 
-  /** One row per stone in a combined multi-stone offer — replaces the single
-   *  Shape/Carat/.../price-block layout used for an ordinary one-stone offer.
-   *  Mirrors buildCompareTable()'s discount/rate math per stone, for any stone
-   *  linked to one of our inventory stones (has a rapRate ref), plus a totals
-   *  footer row summing carat/price/our total/profit across every stone. */
-  function stonesTableHtml(o) {
-    var totalCarat = 0, totalClient = 0, totalOur = 0, totalProfit = null;
-    var rows = o.stones.map(function (s, i) {
+  /** The one stones-table format used everywhere a stone/offer's pricing is shown in
+   *  detail: the offer detail drawer (single- or multi-stone, via stonesForOffer()) and
+   *  both Excel exports (server-side mirror in lib/exportFormat — keep the two in sync).
+   *  Columns: our own descriptive + pricing data (neutral), then the client's price
+   *  normalized into all three units (orange), then the diff in each — one shared
+   *  profit verdict (client amount vs our amount) colors all three diff cells, since
+   *  they're the same comparison in different units, not three independent signs. */
+  function stonesDetailTableHtml(o) {
+    var stones = stonesForOffer(o);
+    var totals = { ourAmt: 0, ourBackSum: 0, ourBackN: 0, clientAmt: 0, clientBackSum: 0, clientBackN: 0, diffAmt: 0, diffBackSum: 0, diffBackN: 0, anyOur: false, anyClient: false, anyDiff: false };
+
+    var rows = stones.map(function (s) {
       var carat = parseFloat(s.carat) || 0;
       var ref = s.matchedStone;
-      var clientTotal = stoneEffectiveValue(s.priceType, s.price, carat, ref);
-      totalCarat += carat;
-      totalClient += clientTotal;
-      var cmpCells;
-      if (ref && ref.rapRate) {
-        var ourRate = ref.rate, ourRap = ref.rapRate;
-        var ourTotal = ref.amt || ourRate * carat;
-        var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
-        var clientRate = carat ? clientTotal / carat : 0;
-        var clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
-        var profit = stoneProfit(s.priceType, s.price, carat, ref);
-        totalOur += ourTotal;
-        totalProfit = (totalProfit || 0) + profit;
-        cmpCells =
-          '<td class="num">' + (ourDisc != null ? ourDisc.toFixed(2) + "%" : "—") + "</td>" +
-          '<td class="num">' + (clientDisc != null ? clientDisc.toFixed(2) + "%" : "—") + "</td>" +
-          '<td class="num">' + money2(ourTotal) + "</td>" +
-          '<td class="num ' + (profit >= 0 ? "good" : "bad") + '">' + signed(profit, money2) + "</td>";
-      } else {
-        cmpCells = '<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>';
-      }
-      return "<tr><td>" + (i + 1) + "</td><td>" + esc(s.shape) + '</td><td class="num">' + carat.toFixed(2) + "</td><td>" +
-        esc(s.color) + "/" + esc(s.clarity || "—") + "</td><td>" + esc(s.cut || "—") + '</td><td class="mono">' + esc(s.cert || "—") + "</td><td>" +
-        formatPriceByType(s.priceType, s.price) + (ref ? ' <span class="mono" style="opacity:.6;">(' + esc(ref.stoneId) + ")</span>" : "") +
-        '</td><td class="num">' + money2(clientTotal) + "</td>" + cmpCells + "<td>" + stoneLinksCell(ref) + "</td></tr>";
+      var our = ourMetrics(ref);
+      var client = clientMetrics(s.priceType, s.price, carat, ref);
+      var backDiff = (our.back != null && client.back != null) ? our.back - client.back : null;
+      var rateDiff = (our.rate != null && client.rate != null) ? our.rate - client.rate : null;
+      var amtDiff = (our.amount != null && client.amount != null) ? client.amount - our.amount : null;
+      var diffCls = amtDiff == null ? "" : (amtDiff >= 0 ? " good" : " bad");
+
+      if (our.amount != null) { totals.ourAmt += our.amount; totals.anyOur = true; }
+      if (our.back != null) { totals.ourBackSum += our.back; totals.ourBackN++; }
+      if (client.amount != null) { totals.clientAmt += client.amount; totals.anyClient = true; }
+      if (client.back != null) { totals.clientBackSum += client.back; totals.clientBackN++; }
+      if (amtDiff != null) { totals.diffAmt += amtDiff; totals.anyDiff = true; }
+      if (backDiff != null) { totals.diffBackSum += backDiff; totals.diffBackN++; }
+
+      var shape = (ref && ref.shape) || s.shape, color = (ref && ref.color) || s.color,
+          clarity = (ref && ref.clarity) || s.clarity, cut = (ref && ref.cut) || s.cut;
+      var stoneIdCell = esc(ref ? ref.stoneId : "—") + (ref ? " " + stoneLinksCell(ref) : "");
+
+      return "<tr><td class=\"mono\">" + stoneIdCell + "</td>" +
+        '<td class="mono">' + esc(ref ? ref.reportNo : "—") + "</td>" +
+        "<td>" + esc(shape || "—") + "</td><td>" + esc(color || "—") + "</td><td>" + esc(clarity || "—") + "</td>" +
+        '<td class="num">' + (carat ? carat.toFixed(2) : "—") + "</td>" +
+        "<td>" + esc(cut || "—") + "</td><td>" + esc(ref ? ref.polish : "—") + "</td><td>" + esc(ref ? ref.symmetry : "—") + "</td>" +
+        "<td>" + esc(ref ? ref.fluorescence : "—") + "</td><td>" + esc(ref ? ref.lab : "—") + "</td>" +
+        '<td class="num">' + (our.back != null ? our.back.toFixed(2) : "—") + '</td><td class="num">' + (our.rate != null ? money2(our.rate) : "—") + '</td><td class="num">' + (our.amount != null ? money2(our.amount) : "—") + "</td>" +
+        '<td class="num">' + (our.rapRate != null ? money2(our.rapRate) : "—") + '</td><td class="num">' + (our.rapAmt != null ? money2(our.rapAmt) : "—") + "</td>" +
+        '<td class="num client-col">' + (client.back != null ? client.back.toFixed(2) : "—") + '</td><td class="num client-col">' + (client.rate != null ? money2(client.rate) : "—") + '</td><td class="num client-col">' + (client.amount != null ? money2(client.amount) : "—") + "</td>" +
+        '<td class="num' + diffCls + '">' + (backDiff != null ? signed(backDiff, function (v) { return v.toFixed(2); }) : "—") + "</td>" +
+        '<td class="num' + diffCls + '">' + (rateDiff != null ? signed(rateDiff, money2) : "—") + "</td>" +
+        '<td class="num' + diffCls + '">' + (amtDiff != null ? signed(amtDiff, money2) : "—") + "</td></tr>";
     }).join("");
-    var totalsRow = '<tr class="totals-row"><td colspan="2">Total</td><td class="num">' + totalCarat.toFixed(2) + '</td><td colspan="4"></td>' +
-      '<td class="num">' + money2(totalClient) + '</td><td colspan="2"></td>' +
-      '<td class="num">' + (totalProfit != null ? money2(totalOur) : "—") + "</td>" +
-      '<td class="num' + (totalProfit != null ? (totalProfit >= 0 ? " good" : " bad") : "") + '">' + (totalProfit != null ? signed(totalProfit, money2) : "—") + "</td>" +
-      "<td></td></tr>";
+
+    var ourAvgBack = totals.ourBackN ? totals.ourBackSum / totals.ourBackN : null;
+    var clientAvgBack = totals.clientBackN ? totals.clientBackSum / totals.clientBackN : null;
+    var diffAvgBack = totals.diffBackN ? totals.diffBackSum / totals.diffBackN : null;
+    var diffCls = totals.anyDiff ? (totals.diffAmt >= 0 ? " good" : " bad") : "";
+
+    var ourRow = '<tr class="totals-row"><td colspan="11">Our Avg / Total</td>' +
+      '<td class="num">' + (ourAvgBack != null ? ourAvgBack.toFixed(2) : "—") + '</td><td></td>' +
+      '<td class="num">' + (totals.anyOur ? money2(totals.ourAmt) : "—") + "</td><td colspan=\"8\"></td></tr>";
+    var clientRow = '<tr class="totals-row"><td colspan="16">Client Avg / Total</td>' +
+      '<td class="num client-col">' + (clientAvgBack != null ? clientAvgBack.toFixed(2) : "—") + '</td><td></td>' +
+      '<td class="num client-col">' + (totals.anyClient ? money2(totals.clientAmt) : "—") + "</td><td colspan=\"3\"></td></tr>";
+    var diffRow = '<tr class="totals-row"><td colspan="19">Diff Avg / Total</td>' +
+      '<td class="num' + diffCls + '">' + (diffAvgBack != null ? diffAvgBack.toFixed(2) : "—") + '</td><td></td>' +
+      '<td class="num' + diffCls + '">' + (totals.anyDiff ? money2(totals.diffAmt) : "—") + "</td></tr>";
+
     return '<div class="table-scroll"><table class="data-table stones-detail-table">' +
-      "<thead><tr><th>#</th><th>Shape</th><th class=\"num\">Carat</th><th>Color/Clarity</th><th>Cut</th><th>Cert</th><th>Price</th><th class=\"num\">Total</th>" +
-      "<th class=\"num\">Our Disc%</th><th class=\"num\">Client Disc%</th><th class=\"num\">Our Total</th><th class=\"num\">Profit/Loss</th><th>Links</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody><tfoot>" + totalsRow + "</tfoot></table></div>";
+      "<thead><tr><th>Stone ID</th><th>Report No</th><th>Shape</th><th>Color</th><th>Clarity</th><th class=\"num\">Carat</th>" +
+      "<th>Cut</th><th>Polish</th><th>Symmetry</th><th>Fluor.</th><th>Lab</th>" +
+      "<th class=\"num\">Back</th><th class=\"num\">Rate/ct</th><th class=\"num\">Amount</th><th class=\"num\">Rap Rate</th><th class=\"num\">Rap Amt</th>" +
+      "<th class=\"num\">Client Back</th><th class=\"num\">Client Rate/ct</th><th class=\"num\">Client Amount</th>" +
+      "<th class=\"num\">Back Diff</th><th class=\"num\">Rate/ct Diff</th><th class=\"num\">Amount Diff</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody><tfoot>" + ourRow + clientRow + diffRow + "</tfoot></table></div>";
   }
 
   function renderDetail() {
@@ -1440,8 +1488,7 @@
       return;
     }
     var client = clientById(o.clientId) || { entityName: "(unknown client)", country: "", stockCategory: "" };
-    var multi = isMultiStone(o);
-    var ref = multi ? null : primaryMatchedStone(o);
+    var stones = stonesForOffer(o);
 
     var stepper = STATUS_ORDER.map(function (s) {
       var idx = STATUS_ORDER.indexOf(s), curIdx = STATUS_ORDER.indexOf(o.status);
@@ -1449,19 +1496,18 @@
       return '<button type="button" class="' + cls + '" data-step="' + s + '" data-action="status" data-id="' + o.id + '">' + STATUS_LABELS[s] + "</button>";
     }).join("");
 
-    var specGridHtml = "";
-    if (!multi) {
-      var specs = [["Shape", o.shape], ["Carat", o.carat + " ct"], ["Color", o.color], ["Clarity", o.clarity || "—"], ["Cut", o.cut || "—"], ["Channel", o.channel]]
-        .map(function (p) { return '<div class="spec-item"><div class="spec-label">' + p[0] + '</div><div class="spec-value">' + esc(p[1]) + "</div></div>"; })
-        .join("") + '<div class="spec-item wide"><div class="spec-label">Certificate</div><div class="spec-value cert-value">' + esc(o.cert || "—") + "</div></div>";
-      specGridHtml = '<div class="spec-grid">' + specs + "</div>";
+    var seenHtml = "";
+    if (o.seenBy && o.seenBy.length) {
+      var seenSorted = o.seenBy.slice().sort(function (a, b) { return new Date(b.seenAt) - new Date(a.seenAt); });
+      seenHtml = '<div class="seen-row">👁 Seen by ' + seenSorted.map(function (s) { return esc(s.name) + " (" + timeAgoShort(s.seenAt) + ")"; }).join(", ") + "</div>";
     }
-
-    var pricePlaceholder = multi ? "Counter price ($ total)" :
-      (o.priceType === "back" ? "Counter Back % (e.g. -38)" : (o.priceType === "per_carat" ? "Counter price ($/ct)" : "Counter price ($ total)"));
+    var soldHtml = (o.status === "accepted" && o.soldPriceType)
+      ? '<div class="sold-row">✅ Sold at ' + formatPriceByType(o.soldPriceType, o.soldPrice) + (o.soldAt ? " · " + fmtDateTime(o.soldAt) : "") + "</div>" : "";
+    var rejectHtml = (o.status === "rejected" && o.rejectionReason)
+      ? '<div class="reject-row">❌ Rejected: ' + esc(o.rejectionReason) + "</div>" : "";
 
     var thread = (o.thread || []).map(function (m) {
-      var priceHtml = m.price != null ? '<div class="msg-price">' + (multi ? money(m.price) : formatPriceByType(o.priceType, m.price)) + "</div>" : "";
+      var priceHtml = m.price != null ? '<div class="msg-price">' + money(m.price) + "</div>" : "";
       if (m.author !== "company") {
         return '<div class="msg msg-client"><div class="msg-meta"><span>Client</span><span>' + fmtDateTime(m.ts) + "</span></div>" +
           "<div>" + esc(m.message) + "</div>" + priceHtml + "</div>";
@@ -1472,34 +1518,27 @@
         "<div>" + esc(m.message) + "</div>" + priceHtml + "</div>";
     }).join("");
 
-    var priceBlockHtml;
-    if (multi) {
-      var totalCarat = o.stones.reduce(function (sum, s) { return sum + (parseFloat(s.carat) || 0); }, 0);
-      priceBlockHtml = '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' +
-        (o.type === "sell" ? "Total Asking Price" : "Total Client Budget") + '</div><div class="price-main">' + money(effectiveValue(o)) + "</div></div>" +
-        '<div class="price-note">' + o.stones.length + " stones · " + totalCarat.toFixed(2) + "ct total</div></div>" + stonesTableHtml(o) + "</div>";
-    } else {
-      var effRate = computeEffectiveRate(o, ref);
-      var compareHtml = buildCompareTable(o, ref);
-      priceBlockHtml = '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' + (o.type === "sell" ? "Asking Price" : "Client Budget") + '</div><div class="price-main">' + priceDisplay(o) + "</div></div><div class=\"price-note\">" +
-        (effRate != null ? "≈ " + money(effRate * (parseFloat(o.carat) || 1)) + " total" : "") + "</div></div>" + compareHtml + stoneLinksHtml(ref) + "</div>";
-    }
+    var totalCarat = stones.reduce(function (sum, s) { return sum + (parseFloat(s.carat) || 0); }, 0);
+    var priceBlockHtml = '<div class="price-block"><div class="price-block-top"><div><div class="price-label">' +
+      (o.type === "sell" ? "Total Asking Price" : "Total Client Budget") + '</div><div class="price-main">' + money(effectiveValue(o)) + "</div></div>" +
+      '<div class="price-note">' + stones.length + (stones.length === 1 ? " stone · " : " stones · ") + totalCarat.toFixed(2) + "ct total</div></div>" + stonesDetailTableHtml(o) + "</div>";
 
     panel.innerHTML =
       '<div class="detail-scroll">' +
         '<div class="detail-header"><div class="detail-header-top"><div><h2>' + esc(client.entityName) + "</h2><div class=\"detail-sub\">" +
           (client.country ? esc(client.country) + " · " : "") + (client.stockCategory ? esc(client.stockCategory) + " · " : "") +
           (o.contact ? esc(o.contact) + " · " : "") + "via " + esc(o.channel) + "</div></div></div>" +
-          '<div class="detail-badges">' + typePill(o.type) + statusPill(o.status) + (multi ? '<span class="pill">' + o.stones.length + " stones</span>" : "") + (o.priority ? '<span class="pill pill-priority">High priority</span>' : "") + "</div></div>" +
+          '<div class="detail-badges">' + typePill(o.type) + statusPill(o.status) + (stones.length > 1 ? '<span class="pill">' + stones.length + " stones</span>" : "") + (o.priority ? '<span class="pill pill-priority">High priority</span>' : "") + "</div></div>" +
         '<div class="stepper">' + stepper + "</div>" +
-        specGridHtml +
+        seenHtml +
         priceBlockHtml +
+        soldHtml + rejectHtml +
         (o.notes ? '<div class="notes-block"><div class="spec-label">Notes</div>' + esc(o.notes) + "</div>" : "") +
         '<div class="thread-block"><div class="thread-title">Negotiation Thread</div><div class="thread">' + thread + "</div>" +
           '<form class="msg-form" data-id="' + o.id + '">' +
             '<div class="msg-form-row"><textarea placeholder="Log a message, counter-offer, or update…" required></textarea></div>' +
             '<div class="msg-form-controls">' +
-              '<input type="number" step="0.01" class="price-input" placeholder="' + pricePlaceholder + '"><button type="submit" class="btn btn-primary btn-sm">Post</button></div>' +
+              '<input type="number" step="0.01" class="price-input" placeholder="Counter price ($ total)"><button type="submit" class="btn btn-primary btn-sm">Post</button></div>' +
           "</form></div>" +
       "</div>";
   }
@@ -1532,15 +1571,61 @@
 
   async function setOfferStatus(offer, newStatus) {
     if (offer.status === newStatus) return;
+    // Accepted/Rejected need extra data first (final sold price / a reason) — the popups
+    // call applyStatusChange themselves once the office fills them in, or not at all if cancelled.
+    if (newStatus === "accepted") { openAcceptModal(offer); return; }
+    if (newStatus === "rejected") { openRejectModal(offer); return; }
+    await applyStatusChange(offer, newStatus, {});
+  }
+  async function applyStatusChange(offer, newStatus, extraFields) {
     var wasAccepted = offer.status === "accepted";
     try {
-      var updated = await patchOfferOnServer(offer.id, { version: offer.version, status: newStatus });
+      var updated = await patchOfferOnServer(offer.id, Object.assign({ version: offer.version, status: newStatus }, extraFields));
       renderOffersTab();
       if (newStatus === "accepted" && !wasAccepted) celebrateDealClosed(updated);
     } catch (err) {
       if (!(await handleConflict(err))) alert("Could not update status: " + err.message);
     }
   }
+
+  var pendingStatusOffer = null;
+  function openAcceptModal(offer) {
+    pendingStatusOffer = offer;
+    document.getElementById("af-priceType").value = "per_carat";
+    document.getElementById("af-price").value = "";
+    document.getElementById("acceptModalOverlay").classList.add("open");
+  }
+  function closeAcceptModal() { document.getElementById("acceptModalOverlay").classList.remove("open"); pendingStatusOffer = null; }
+  document.getElementById("acceptModalClose").addEventListener("click", closeAcceptModal);
+  document.getElementById("acceptModalCancel").addEventListener("click", closeAcceptModal);
+  document.getElementById("acceptModalOverlay").addEventListener("click", function (e) { if (e.target.id === "acceptModalOverlay") closeAcceptModal(); });
+  document.getElementById("acceptForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!pendingStatusOffer) return;
+    var offer = pendingStatusOffer;
+    var soldPriceType = document.getElementById("af-priceType").value;
+    var soldPrice = Number(document.getElementById("af-price").value) || 0;
+    closeAcceptModal();
+    await applyStatusChange(offer, "accepted", { soldPriceType: soldPriceType, soldPrice: soldPrice });
+  });
+
+  function openRejectModal(offer) {
+    pendingStatusOffer = offer;
+    document.getElementById("rf-reason").value = "";
+    document.getElementById("rejectModalOverlay").classList.add("open");
+  }
+  function closeRejectModal() { document.getElementById("rejectModalOverlay").classList.remove("open"); pendingStatusOffer = null; }
+  document.getElementById("rejectModalClose").addEventListener("click", closeRejectModal);
+  document.getElementById("rejectModalCancel").addEventListener("click", closeRejectModal);
+  document.getElementById("rejectModalOverlay").addEventListener("click", function (e) { if (e.target.id === "rejectModalOverlay") closeRejectModal(); });
+  document.getElementById("rejectForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!pendingStatusOffer) return;
+    var offer = pendingStatusOffer;
+    var reason = document.getElementById("rf-reason").value.trim();
+    closeRejectModal();
+    await applyStatusChange(offer, "rejected", { rejectionReason: reason });
+  });
 
   /* =========================================================================
      INVENTORY TAB
@@ -1571,7 +1656,7 @@
     var list = inventory.filter(function (s) {
       if (shapeF !== "all" && s.shape !== shapeF) return false;
       if (statusF !== "all" && s.status !== statusF) return false;
-      if (q) { var hay = (s.stoneId + " " + s.shape + " " + s.color + " " + s.clarity + " " + s.lab + " " + s.location).toLowerCase(); if (hay.indexOf(q) === -1) return false; }
+      if (q) { var hay = (s.stoneId + " " + s.reportNo + " " + s.shape + " " + s.color + " " + s.clarity + " " + s.lab + " " + s.location).toLowerCase(); if (hay.indexOf(q) === -1) return false; }
       return true;
     });
     if (sort === "carat_desc") list = list.slice().sort(function (a, b) { return b.weight - a.weight; });
@@ -1760,6 +1845,7 @@
     if (offer && offer.unread) {
       try { await patchOfferOnServer(id, { version: offer.version, markRead: true }); renderPipelineBoard(); } catch (e) { /* non-critical */ }
     }
+    try { await patchOfferOnServer(id, { markSeen: true }); } catch (e) { /* non-critical */ }
     renderDetail();
     document.getElementById("drawerOverlay").classList.add("open");
   }
@@ -2230,6 +2316,9 @@
     var offer = offers.find(function (o) { return o.id === selectedId; });
     if (offer) openModal(offer);
   });
+  document.getElementById("exportOfferBtn").addEventListener("click", function () {
+    if (selectedId) window.location.href = "/api/offers/" + selectedId + "/export";
+  });
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.getElementById("modalCancel").addEventListener("click", closeModal);
   overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
@@ -2243,10 +2332,17 @@
     if (!document.getElementById("userDropdown").hidden) document.getElementById("userDropdown").hidden = true;
     if (document.getElementById("adminModalOverlay").classList.contains("open")) document.getElementById("adminModalOverlay").classList.remove("open");
     if (document.getElementById("changePasswordModalOverlay").classList.contains("open")) closeChangePasswordModal();
+    if (document.getElementById("acceptModalOverlay").classList.contains("open")) closeAcceptModal();
+    if (document.getElementById("rejectModalOverlay").classList.contains("open")) closeRejectModal();
   });
 
   document.getElementById("offerForm").addEventListener("submit", async function (e) {
     e.preventDefault();
+    // Guards a fast double-click/double-Enter from firing this twice and saving the offer twice —
+    // the button stays disabled for the whole request, success or failure, then re-enabled in finally.
+    var submitBtn = document.getElementById("offerFormSubmitBtn");
+    if (submitBtn.disabled) return;
+    submitBtn.disabled = true;
     var type = document.querySelector("input[name='offerType']:checked").value;
     var common = {
       clientName: document.getElementById("f-client").value,
@@ -2278,7 +2374,7 @@
         // Create mode: one or more stones from inventory, priced separately or via one shared/averaged
         // price — all bundled into a single combined offer (see isMultiStone()/renderDetail()).
         var stones = collectStoneRows();
-        if (!stones.length) { alert("Add at least one stone."); return; }
+        if (!stones.length) { alert("Add at least one stone."); submitBtn.disabled = false; return; }
         offer = await createOfferBatchOnServer(Object.assign({}, common, { stones: stones }));
       }
       await loadClientsFromServer();
@@ -2289,6 +2385,8 @@
       await openDetailDrawer(offer.id);
     } catch (err) {
       if (!(await handleConflict(err))) alert("Could not save offer: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
     }
   });
 

@@ -9,6 +9,9 @@ export function rowToOffer(r: any) {
     priceType: r.price_type, price: Number(r.price), priority: r.priority, status: r.status,
     notes: r.notes, thread: r.thread, matchedStones: r.matched_stones, stones: r.stones ?? [], unread: r.unread,
     createdByOffice: r.created_by_office, version: r.version, batchId: r.batch_id,
+    seenBy: r.seen_by ?? [],
+    soldPriceType: r.sold_price_type, soldPrice: r.sold_price != null ? Number(r.sold_price) : null, soldAt: r.sold_at,
+    rejectionReason: r.rejection_reason,
     createdAt: r.created_at, updatedAt: r.updated_at
   };
 }

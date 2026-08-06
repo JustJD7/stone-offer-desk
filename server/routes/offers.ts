@@ -1,9 +1,8 @@
 import { Router } from "express";
-import * as XLSX from "xlsx";
 import { sql } from "../../lib/db.js";
 import { rowToOffer } from "../../lib/mappers.js";
 import { resolveOrCreateClient } from "../../lib/clients.js";
-import { compareOfferPrice } from "../../lib/priceCompare.js";
+import { buildOffersWorkbook } from "../../lib/exportBuilder.js";
 import { requireAdmin, blockSuperadmin } from "../middleware/requireAuth.js";
 import { logActivity } from "../../lib/activityLog.js";
 
@@ -12,32 +11,18 @@ const router = Router();
 interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number; by?: string }
 interface MatchedStone { stoneId: string; rate?: number; rapRate?: number; amt?: number; [key: string]: unknown }
 
-function formatThreadForExport(thread: ThreadMessage[] | null | undefined): string {
-  return (thread ?? []).map((m) => {
-    const who = m.author === "company" ? (m.by || "Company") : "Client";
-    const ts = new Date(m.ts).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-    const price = m.price != null ? ` [${m.price}]` : "";
-    return `${ts} - ${who}: ${m.message}${price}`;
-  }).join("\n");
-}
-
-interface StoneEntry { shape: string; carat: string; priceType: string; price: number; matchedStone: MatchedStone | null }
-
-/** Mirrors the frontend's effectiveValue() per-stone math (public/index.html) —
- *  used so a multi-stone offer's export row totals what the app shows, since
- *  compareOfferPrice only knows how to compare a single stone against a single ref. */
-function stoneEffectiveValue(s: StoneEntry): number {
-  const carat = parseFloat(s.carat) || 1;
-  if (s.priceType === "total") return s.price;
-  if (s.priceType === "per_carat") return s.price * carat;
-  if (s.priceType === "back" && s.matchedStone?.rapRate) return s.matchedStone.rapRate * (1 + s.price / 100) * carat;
-  return 0;
-}
-
 router.get("/", async (_req, res) => {
   const rows = await sql`select * from offers order by created_at desc`;
   res.status(200).json({ offers: rows.map(rowToOffer) });
 });
+
+function sendWorkbook(res: import("express").Response, rows: unknown[], filenamePrefix: string) {
+  const buffer = buildOffersWorkbook(rows);
+  res.status(200)
+    .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    .set("Content-Disposition", `attachment; filename="${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.xlsx"`)
+    .send(buffer);
+}
 
 // Must come before "/:id"-style routes so "export" isn't treated as an id.
 router.get("/export", requireAdmin, async (_req, res) => {
@@ -46,60 +31,7 @@ router.get("/export", requireAdmin, async (_req, res) => {
     from offers o left join clients c on c.id = o.client_id
     order by o.created_at desc
   `;
-
-  const header = [
-    "Client", "Country", "Type", "Status", "Priority", "Shape", "Carat", "Color", "Clarity", "Cut", "Certificate",
-    "Channel", "Contact", "Price Type", "Price (as entered)", "Matched Stone ID",
-    "Our Discount %", "Our Rate/ct", "Our Total", "Client Discount %", "Client Rate/ct", "Client Total",
-    "Diff Rate/ct", "Diff Total", "Favorable to Us", "Created By", "Created At", "Notes", "Negotiation Thread"
-  ];
-
-  const body = rows.map((r: any) => {
-    const stones = (r.stones ?? []) as StoneEntry[];
-    if (stones.length > 1) {
-      // Multi-stone offer: compareOfferPrice only compares one stone against one ref,
-      // so a mixed bag of stones just gets a total instead of a per-stone discount/rate breakdown.
-      const totalCarat = stones.reduce((sum, s) => sum + (parseFloat(s.carat) || 0), 0);
-      const totalValue = stones.reduce((sum, s) => sum + stoneEffectiveValue(s), 0);
-      return [
-        r.entity_name || "", r.country || "", r.type, r.status, r.priority ? "Yes" : "No",
-        `${stones.length} stones: ${stones.map((s) => `${s.shape} ${s.carat}ct`).join(", ")}`,
-        Number(totalCarat.toFixed(2)), "", "", "", "",
-        r.channel || "", r.contact || "", "total", Number(totalValue.toFixed(2)),
-        "", "", "", "", "", "", "", "", "", "",
-        r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || "",
-        formatThreadForExport(r.thread)
-      ];
-    }
-    const cmp = compareOfferPrice({ type: r.type, priceType: r.price_type, price: Number(r.price), carat: r.carat, matchedStones: r.matched_stones });
-    return [
-      r.entity_name || "", r.country || "", r.type, r.status, r.priority ? "Yes" : "No",
-      r.shape || "", r.carat || "", r.color || "", r.clarity || "", r.cut || "", r.cert || "",
-      r.channel || "", r.contact || "", r.price_type, Number(r.price),
-      cmp.stoneId || "",
-      cmp.ourDiscountPct != null ? Number(cmp.ourDiscountPct.toFixed(2)) : "",
-      cmp.ourRate != null ? Number(cmp.ourRate.toFixed(2)) : "",
-      cmp.ourTotal != null ? Number(cmp.ourTotal.toFixed(2)) : "",
-      cmp.clientDiscountPct != null ? Number(cmp.clientDiscountPct.toFixed(2)) : "",
-      cmp.clientRate != null ? Number(cmp.clientRate.toFixed(2)) : "",
-      cmp.clientTotal != null ? Number(cmp.clientTotal.toFixed(2)) : "",
-      cmp.diffRate != null ? Number(cmp.diffRate.toFixed(2)) : "",
-      cmp.diffTotal != null ? Number(cmp.diffTotal.toFixed(2)) : "",
-      cmp.favorable == null ? "" : (cmp.favorable ? "Yes" : "No"),
-      r.created_by_office || "", new Date(r.created_at).toISOString(), r.notes || "",
-      formatThreadForExport(r.thread)
-    ];
-  });
-
-  const sheet = XLSX.utils.aoa_to_sheet([header, ...body]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, sheet, "Offers");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
-
-  res.status(200)
-    .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    .set("Content-Disposition", `attachment; filename="offers-export-${new Date().toISOString().slice(0, 10)}.xlsx"`)
-    .send(buffer);
+  sendWorkbook(res, rows, "offers-export");
 });
 
 // One client, one or more stones in a single submission — all stones land in a
@@ -182,6 +114,19 @@ router.post("/batch", blockSuperadmin, async (req, res) => {
   res.status(201).json({ offer });
 });
 
+// Single-offer export — same row format as GET /export, just scoped to one offer.
+// Open to any signed-in user (unlike the admin-only bulk export): exporting a deal you're
+// already looking at in full detail in the UI isn't exposing anything new.
+router.get("/:id/export", async (req, res) => {
+  const rows = await sql`
+    select o.*, c.entity_name, c.country
+    from offers o left join clients c on c.id = o.client_id
+    where o.id = ${req.params.id}
+  `;
+  if (!rows[0]) { res.status(404).json({ error: "Offer not found" }); return; }
+  sendWorkbook(res, rows, "offer-export");
+});
+
 router.post("/", blockSuperadmin, async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const clientName = String(body.clientName ?? "").trim();
@@ -230,12 +175,26 @@ router.post("/", blockSuperadmin, async (req, res) => {
 router.patch("/:id", blockSuperadmin, async (req, res) => {
   const id = req.params.id;
   const body = (req.body ?? {}) as {
-    version?: number; status?: string; priority?: boolean; markRead?: boolean;
+    version?: number; status?: string; priority?: boolean; markRead?: boolean; markSeen?: boolean;
     appendMessage?: ThreadMessage; matchedStonesAdd?: MatchedStone; matchedStonesRemove?: string;
     clientName?: string; contact?: string; channel?: string; type?: string;
     shape?: string; carat?: string; color?: string; clarity?: string; cut?: string; cert?: string;
     priceType?: string; price?: number; notes?: string;
+    soldPriceType?: string; soldPrice?: number; rejectionReason?: string;
   };
+
+  // Tracked independently of the optimistic-concurrency version bump every other field uses below —
+  // "I opened this" shouldn't create an edit conflict for someone actually negotiating it.
+  if (body.markSeen) {
+    const current = await sql`select seen_by from offers where id = ${id}`;
+    if (!current[0]) { res.status(404).json({ error: "Offer not found" }); return; }
+    type SeenEntry = { id: string; name: string; seenAt: string };
+    const seenBy = ((current[0].seen_by as SeenEntry[]) ?? []).filter((s) => s.id !== req.user!.id);
+    seenBy.push({ id: req.user!.id, name: req.user!.name, seenAt: new Date().toISOString() });
+    const updated = await sql`update offers set seen_by = ${JSON.stringify(seenBy)} where id = ${id} returning *`;
+    res.status(200).json({ offer: rowToOffer(updated[0]) });
+    return;
+  }
 
   const current = await sql`select * from offers where id = ${id}`;
   const row = current[0];
@@ -286,6 +245,12 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
   const contact = body.contact !== undefined ? body.contact : row.contact;
   const channel = body.channel !== undefined ? body.channel : row.channel;
   const notes = body.notes !== undefined ? body.notes : row.notes;
+  // Set once, on the PATCH that actually supplies them (from the Accept/Reject popups) — never
+  // cleared by later unrelated edits, since body.soldPriceType/rejectionReason are only ever sent then.
+  const soldPriceType = body.soldPriceType !== undefined ? body.soldPriceType : row.sold_price_type;
+  const soldPrice = body.soldPrice !== undefined ? Number(body.soldPrice) || 0 : row.sold_price;
+  const soldAt = body.soldPriceType !== undefined ? new Date().toISOString() : row.sold_at;
+  const rejectionReason = body.rejectionReason !== undefined ? body.rejectionReason : row.rejection_reason;
 
   const updated = await sql`
     update offers set
@@ -294,6 +259,8 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
       contact = ${contact}, channel = ${channel}, notes = ${notes},
       status = ${status}, priority = ${priority}, thread = ${JSON.stringify(thread)},
       matched_stones = ${JSON.stringify(matchedStones)}, unread = ${unread},
+      sold_price_type = ${soldPriceType}, sold_price = ${soldPrice}, sold_at = ${soldAt},
+      rejection_reason = ${rejectionReason},
       version = version + 1, updated_at = now()
     where id = ${id} and version = ${row.version}
     returning *
@@ -313,7 +280,14 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
     `;
     await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "message_posted", detail: String(body.appendMessage.message).slice(0, 120), offerId: id });
   } else if (body.status !== undefined && body.status !== row.status) {
-    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_status_changed", detail: `${row.status} → ${status}`, offerId: id });
+    let detail = `${row.status} → ${status}`;
+    if (status === "accepted" && body.soldPriceType !== undefined) {
+      detail += ` — sold at ${body.soldPriceType === "back" ? body.soldPrice + "% back" : body.soldPriceType === "per_carat" ? "$" + body.soldPrice + "/ct" : "$" + body.soldPrice}`;
+    }
+    if (status === "rejected" && body.rejectionReason) {
+      detail += ` — reason: ${body.rejectionReason.slice(0, 120)}`;
+    }
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_status_changed", detail, offerId: id });
   } else if (
     body.clientName !== undefined || body.contact !== undefined || body.channel !== undefined || body.type !== undefined ||
     body.shape !== undefined || body.carat !== undefined || body.color !== undefined || body.clarity !== undefined ||
