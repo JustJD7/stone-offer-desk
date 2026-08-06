@@ -223,10 +223,12 @@
   .tab-panel[hidden] { display: none; }
 
   /* ---------- Stats ---------- */
-  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
   .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
   .stat-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-muted); font-weight: 600; margin-bottom: 6px; }
   .stat-value { font-family: var(--font-display); font-size: 26px; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat-value.pos { color: var(--status-accepted); }
+  .stat-value.neg { color: var(--status-rejected); }
   .stat-sub { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
   .stat-sub.pos { color: var(--status-accepted); }
 
@@ -329,6 +331,7 @@
   .compare-table td.diff.bad { color: var(--status-rejected); font-weight: 700; }
   .stones-detail-table td.good { color: var(--status-accepted); font-weight: 700; }
   .stones-detail-table td.bad { color: var(--status-rejected); font-weight: 700; }
+  .stones-detail-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
   .compare-table td.client { color: var(--accent-strong); font-weight: 600; }
 
   .notes-block { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--ink-2); }
@@ -1071,6 +1074,29 @@
     var eff = computeEffectiveRate(o);
     return eff != null ? eff * carat : 0;
   }
+  /** Profit to us, sign-normalized so + is always a gain and - is always a
+   *  loss regardless of buy/sell direction — for "sell" (client sells to us)
+   *  we gain when our valuation is higher than what the client asks; for
+   *  "buy" (client buys from us) we gain when the client pays more than our
+   *  valuation. Returns null when there's no linked inventory stone to value against. */
+  function stoneProfit(offerType, priceType, price, carat, ref) {
+    if (!ref || !ref.rapRate) return null;
+    carat = parseFloat(carat) || 1;
+    var clientTotal = stoneEffectiveValue(priceType, price, carat, ref);
+    var ourTotal = ref.amt || ref.rate * carat;
+    return offerType === "buy" ? (clientTotal - ourTotal) : (ourTotal - clientTotal);
+  }
+  function offerProfit(o) {
+    if (isMultiStone(o)) {
+      var total = null;
+      o.stones.forEach(function (s) {
+        var p = stoneProfit(o.type, s.priceType, s.price, s.carat, s.matchedStone);
+        if (p != null) total = (total || 0) + p;
+      });
+      return total;
+    }
+    return stoneProfit(o.type, o.priceType, o.price, o.carat, primaryMatchedStone(o));
+  }
   function money2(n) { return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function signed(n, formatter) { return (n >= 0 ? "+" : "-") + formatter(Math.abs(n)); }
 
@@ -1257,15 +1283,25 @@
     var accepted = offers.filter(function (o) { return o.status === "accepted"; });
     var openValue = offers.filter(function (o) { return o.status !== "rejected" && o.status !== "accepted"; }).reduce(function (sum, o) { return sum + effectiveValue(o); }, 0);
     var wonValue = accepted.reduce(function (sum, o) { return sum + effectiveValue(o); }, 0);
+    var profitTotal = null;
+    offers.forEach(function (o) {
+      if (o.status === "rejected") return;
+      var p = offerProfit(o);
+      if (p != null) profitTotal = (profitTotal || 0) + p;
+    });
     var tiles = [
       { label: "Total Offers", value: total, sub: fresh + " awaiting first review" },
       { label: "New / Unreviewed", value: fresh, sub: "needs a first response" },
       { label: "In Negotiation", value: negotiating, sub: "active back-and-forth" },
       { label: "Accepted (Won)", value: accepted.length, sub: money(wonValue) + " closed value", pos: true },
-      { label: "Open Pipeline Value", value: money(openValue), sub: "across new · review · negotiating" }
+      { label: "Open Pipeline Value", value: money(openValue), sub: "across new · review · negotiating" },
+      {
+        label: "Total Profit/Loss", value: profitTotal != null ? signed(profitTotal, money) : "—",
+        sub: "vs. our inventory pricing, excl. rejected", valueClass: profitTotal == null ? "" : (profitTotal >= 0 ? "pos" : "neg")
+      }
     ];
     document.getElementById("statsRow").innerHTML = tiles.map(function (t) {
-      return '<div class="stat-tile"><div class="stat-label">' + t.label + '</div><div class="stat-value">' + t.value + '</div><div class="stat-sub' + (t.pos ? " pos" : "") + '">' + t.sub + "</div></div>";
+      return '<div class="stat-tile"><div class="stat-label">' + t.label + '</div><div class="stat-value' + (t.valueClass ? " " + t.valueClass : "") + '">' + t.value + '</div><div class="stat-sub' + (t.pos ? " pos" : "") + '">' + t.sub + "</div></div>";
     }).join("");
   }
 
@@ -1340,15 +1376,29 @@
     return links.length ? '<div class="stone-links-row">' + links.join("") + "</div>" : "";
   }
 
+  /** Compact "open the photo/video" links for one stone, table-cell form of
+   *  stoneLinksHtml() above — used per row in the multi-stone table below. */
+  function stoneLinksCell(stone) {
+    if (!stone) return "—";
+    var links = [];
+    if (isUrl(stone.imageLink)) links.push('<a href="' + esc(stone.imageLink) + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm">🖼 Photo</a>');
+    if (isUrl(stone.video)) links.push('<a href="' + esc(stone.video) + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm">🎥 Video</a>');
+    return links.length ? links.join(" ") : "—";
+  }
+
   /** One row per stone in a combined multi-stone offer — replaces the single
    *  Shape/Carat/.../price-block layout used for an ordinary one-stone offer.
-   *  Mirrors buildCompareTable()'s discount/rate/diff math per stone, for any
-   *  stone that's linked to one of our inventory stones (has a rapRate ref). */
+   *  Mirrors buildCompareTable()'s discount/rate math per stone, for any stone
+   *  linked to one of our inventory stones (has a rapRate ref), plus a totals
+   *  footer row summing carat/price/our total/profit across every stone. */
   function stonesTableHtml(o) {
+    var totalCarat = 0, totalClient = 0, totalOur = 0, totalProfit = null;
     var rows = o.stones.map(function (s, i) {
       var carat = parseFloat(s.carat) || 0;
       var ref = s.matchedStone;
       var clientTotal = stoneEffectiveValue(s.priceType, s.price, carat, ref);
+      totalCarat += carat;
+      totalClient += clientTotal;
       var cmpCells;
       if (ref && ref.rapRate) {
         var ourRate = ref.rate, ourRap = ref.rapRate;
@@ -1356,25 +1406,31 @@
         var ourDisc = ourRap ? (1 - ourRate / ourRap) * 100 : null;
         var clientRate = carat ? clientTotal / carat : 0;
         var clientDisc = ourRap ? (1 - clientRate / ourRap) * 100 : null;
-        var diffTotal = clientTotal - ourTotal;
-        var favorable = o.type === "buy" ? clientRate > ourRate : clientRate < ourRate;
+        var profit = stoneProfit(o.type, s.priceType, s.price, carat, ref);
+        totalOur += ourTotal;
+        totalProfit = (totalProfit || 0) + profit;
         cmpCells =
           '<td class="num">' + (ourDisc != null ? ourDisc.toFixed(2) + "%" : "—") + "</td>" +
           '<td class="num">' + (clientDisc != null ? clientDisc.toFixed(2) + "%" : "—") + "</td>" +
           '<td class="num">' + money2(ourTotal) + "</td>" +
-          '<td class="num ' + (favorable ? "good" : "bad") + '">' + signed(diffTotal, money2) + "</td>";
+          '<td class="num ' + (profit >= 0 ? "good" : "bad") + '">' + signed(profit, money2) + "</td>";
       } else {
         cmpCells = '<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>';
       }
       return "<tr><td>" + (i + 1) + "</td><td>" + esc(s.shape) + '</td><td class="num">' + carat.toFixed(2) + "</td><td>" +
         esc(s.color) + "/" + esc(s.clarity || "—") + "</td><td>" + esc(s.cut || "—") + '</td><td class="mono">' + esc(s.cert || "—") + "</td><td>" +
         formatPriceByType(s.priceType, s.price) + (ref ? ' <span class="mono" style="opacity:.6;">(' + esc(ref.stoneId) + ")</span>" : "") +
-        '</td><td class="num">' + money2(clientTotal) + "</td>" + cmpCells + "</tr>";
+        '</td><td class="num">' + money2(clientTotal) + "</td>" + cmpCells + "<td>" + stoneLinksCell(ref) + "</td></tr>";
     }).join("");
+    var totalsRow = '<tr class="totals-row"><td colspan="2">Total</td><td class="num">' + totalCarat.toFixed(2) + '</td><td colspan="4"></td>' +
+      '<td class="num">' + money2(totalClient) + '</td><td colspan="2"></td>' +
+      '<td class="num">' + (totalProfit != null ? money2(totalOur) : "—") + "</td>" +
+      '<td class="num' + (totalProfit != null ? (totalProfit >= 0 ? " good" : " bad") : "") + '">' + (totalProfit != null ? signed(totalProfit, money2) : "—") + "</td>" +
+      "<td></td></tr>";
     return '<div class="table-scroll"><table class="data-table stones-detail-table">' +
       "<thead><tr><th>#</th><th>Shape</th><th class=\"num\">Carat</th><th>Color/Clarity</th><th>Cut</th><th>Cert</th><th>Price</th><th class=\"num\">Total</th>" +
-      "<th class=\"num\">Our Disc%</th><th class=\"num\">Client Disc%</th><th class=\"num\">Our Total</th><th class=\"num\">Diff</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody></table></div>";
+      "<th class=\"num\">Our Disc%</th><th class=\"num\">Client Disc%</th><th class=\"num\">Our Total</th><th class=\"num\">Profit/Loss</th><th>Links</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody><tfoot>" + totalsRow + "</tfoot></table></div>";
   }
 
   function renderDetail() {
