@@ -65,11 +65,13 @@ create table if not exists offers (
   unread            boolean not null default true,
   created_by_office text,
   version           integer not null default 1,
+  batch_id          uuid, -- set when created together with other offers via "add multiple stones at once"
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
 create index if not exists offers_status_idx on offers (status);
 create index if not exists offers_client_id_idx on offers (client_id);
+create index if not exists offers_batch_id_idx on offers (batch_id);
 
 -- ---------------------------------------------------------------------------
 -- Inventory: AutoMail stock snapshot. Replaced wholesale on each successful

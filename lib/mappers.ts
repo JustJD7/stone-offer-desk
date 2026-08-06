@@ -8,7 +8,7 @@ export function rowToOffer(r: any) {
     shape: r.shape, carat: r.carat, color: r.color, clarity: r.clarity, cut: r.cut, cert: r.cert,
     priceType: r.price_type, price: Number(r.price), priority: r.priority, status: r.status,
     notes: r.notes, thread: r.thread, matchedStones: r.matched_stones, unread: r.unread,
-    createdByOffice: r.created_by_office, version: r.version,
+    createdByOffice: r.created_by_office, version: r.version, batchId: r.batch_id,
     createdAt: r.created_at, updatedAt: r.updated_at
   };
 }

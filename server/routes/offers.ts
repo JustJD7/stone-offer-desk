@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as XLSX from "xlsx";
-import { sql } from "../../lib/db.js";
+import crypto from "node:crypto";
+import { sql, withTransaction } from "../../lib/db.js";
 import { rowToOffer } from "../../lib/mappers.js";
 import { resolveOrCreateClient } from "../../lib/clients.js";
 import { compareOfferPrice } from "../../lib/priceCompare.js";
@@ -71,6 +72,79 @@ router.get("/export", requireAdmin, async (_req, res) => {
     .set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     .set("Content-Disposition", `attachment; filename="offers-export-${new Date().toISOString().slice(0, 10)}.xlsx"`)
     .send(buffer);
+});
+
+// One client, one or more stones in a single submission — each stone (and its
+// already-resolved price/priceType, computed client-side whether the user
+// picked "different price per stone" or "one combined price") becomes its own
+// offer row, sharing a batch_id purely for traceability.
+router.post("/batch", blockSuperadmin, async (req, res) => {
+  const body = (req.body ?? {}) as {
+    clientName?: string; contact?: string; channel?: string; type?: string; notes?: string; priority?: boolean;
+    stones?: Array<{
+      shape?: string; carat?: string; color?: string; clarity?: string; cut?: string; cert?: string;
+      priceType?: string; price?: number; matchedStone?: MatchedStone | null;
+    }>;
+  };
+  const clientName = String(body.clientName ?? "").trim();
+  const type = String(body.type ?? "");
+  const stones = Array.isArray(body.stones) ? body.stones : [];
+  if (!clientName || (type !== "sell" && type !== "buy") || !stones.length) {
+    res.status(400).json({ error: "clientName, a valid type, and at least one stone are required." });
+    return;
+  }
+  for (const s of stones) {
+    if (!["per_carat", "total", "back"].includes(String(s.priceType))) {
+      res.status(400).json({ error: "Each stone needs a valid price type." });
+      return;
+    }
+  }
+
+  const clientId = await resolveOrCreateClient(clientName);
+  const batchId = crypto.randomUUID();
+  const createdByOffice = req.user!.name;
+  const createdAt = new Date().toISOString();
+
+  const createdRows = await withTransaction(async (txSql) => {
+    const rows: any[] = [];
+    for (const s of stones) {
+      const shape = String(s.shape ?? ""), carat = String(s.carat ?? ""), color = String(s.color ?? ""), clarity = String(s.clarity ?? "");
+      const initialMessage: ThreadMessage = {
+        author: "client", ts: createdAt,
+        message: `${type === "sell" ? "New stone offered: " : "New requirement: "}${shape} ${carat}ct, ${color}/${clarity || "—"}.`
+      };
+      const matchedStones = s.matchedStone ? [s.matchedStone] : [];
+      const inserted = await txSql`
+        insert into offers (
+          client_id, contact, channel, type, shape, carat, color, clarity, cut, cert,
+          price_type, price, priority, status, notes, thread, matched_stones, unread, created_by_office, batch_id
+        ) values (
+          ${clientId}, ${String(body.contact ?? "")}, ${String(body.channel ?? "")}, ${type},
+          ${shape}, ${carat}, ${color}, ${clarity}, ${String(s.cut ?? "")}, ${String(s.cert ?? "")},
+          ${s.priceType}, ${Number(s.price) || 0}, ${!!body.priority}, 'new', ${String(body.notes ?? "")},
+          ${JSON.stringify([initialMessage])}, ${JSON.stringify(matchedStones)}, true, ${createdByOffice}, ${batchId}
+        )
+        returning *
+      `;
+      rows.push(inserted[0]);
+    }
+    return rows;
+  });
+
+  const clientRow = await sql`select entity_name from clients where id = ${clientId}`;
+  const entityName = (clientRow[0]?.entity_name as string) || "client";
+  await sql`
+    insert into notifications (type, offer_id, text)
+    values ('new_offer', ${createdRows[0].id}, ${
+      "New " + (stones.length > 1 ? `batch of ${stones.length} offers` : "offer") + " from " + entityName
+    })
+  `;
+  await logActivity({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_created",
+    detail: `${entityName} — ${stones.length > 1 ? `batch of ${stones.length} stones` : `${stones[0].shape} ${stones[0].carat}ct`}`
+  });
+
+  res.status(201).json({ offers: createdRows.map(rowToOffer) });
 });
 
 router.post("/", blockSuperadmin, async (req, res) => {

@@ -382,7 +382,7 @@
   .kv-val a { color: var(--accent-strong); }
 
   /* ---------- Modal ---------- */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(20,17,10,.45); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 50; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(20,17,10,.45); display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 70; }
   .modal-overlay.open { display: flex; }
   .modal { background: var(--surface); border-radius: 14px; border: 1px solid var(--border); width: 100%; max-width: 640px; box-shadow: var(--shadow); }
   .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
@@ -414,6 +414,16 @@
   .our-pricing-grid span { display: block; font-size: 11px; color: var(--ink-muted); }
   .our-pricing-grid b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
   .stone-links-row { display: flex; gap: 8px; margin-top: 10px; grid-column: 1/-1; }
+
+  /* ---------- Multi-stone create form ---------- */
+  .stone-section { display: contents; }
+  .stone-row {
+    grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 4px; background: var(--surface-2);
+  }
+  .stone-row-head { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; margin-bottom: -2px; }
+  .stone-row-head b { font-size: 12.5px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-2); }
+  .stone-row-price { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 2px; }
 
   /* ---------- Superadmin: oversight-only, no offer edits ---------- */
   body.role-superadmin #newOfferBtn,
@@ -622,12 +632,6 @@
             <label><input type="radio" name="offerType" value="buy"> Client has a stone requirement</label>
           </div>
 
-          <div class="field wide"><label for="f-stoneLookup">Link one of our stones (optional)</label>
-            <input id="f-stoneLookup" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>
-          <div class="hint" id="f-stoneLookupHint">If this deal concerns a specific stone we already hold, look it up here — it fills in the fields below for you, still editable.</div>
-          <div id="f-stoneLookupResults"></div>
-          <div id="f-ourPricing"></div>
-
           <div class="field wide"><label for="f-client">Client (entity name)</label><input id="f-client" list="clientOptions" required autocomplete="off"></div>
           <div class="hint">Type an existing client name or a new one — new names are added to the Clients directory automatically.</div>
           <div class="field"><label for="f-contact">Contact (phone / email)</label><input id="f-contact"></div>
@@ -638,21 +642,56 @@
               <option>In Person</option><option>Website Inquiry</option>
             </select>
           </div>
-          <div class="field"><label for="f-shape">Shape</label><input id="f-shape" list="shapeOptions" placeholder="e.g. Round" required></div>
-          <div class="field"><label for="f-carat">Carat</label><input id="f-carat" type="text" placeholder="e.g. 2.15 or 1.5–2.0" required></div>
-          <div class="field"><label for="f-color">Color</label><input id="f-color" placeholder="e.g. F or D–G" required></div>
-          <div class="field"><label for="f-clarity">Clarity</label><input id="f-clarity" placeholder="e.g. VS1 or VVS–VS"></div>
-          <div class="field"><label for="f-cut">Cut</label><input id="f-cut" placeholder="e.g. Excellent"></div>
-          <div class="field"><label for="f-cert">Certificate</label><input id="f-cert" placeholder="e.g. GIA 2141567890"></div>
-          <div class="field">
-            <label for="f-priceType" id="f-priceType-label">Price type</label>
-            <select id="f-priceType">
-              <option value="per_carat">Rate ($ per carat)</option>
-              <option value="total">Amt (flat total $)</option>
-              <option value="back">Back (% off Rapaport)</option>
-            </select>
+
+          <!-- EDIT MODE: one existing offer = one stone (unchanged) -->
+          <div class="stone-section" id="editStoneSection">
+            <div class="field wide"><label for="f-stoneLookup">Link one of our stones (optional)</label>
+              <input id="f-stoneLookup" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>
+            <div class="hint" id="f-stoneLookupHint">If this deal concerns a specific stone we already hold, look it up here — it fills in the fields below for you, still editable.</div>
+            <div id="f-stoneLookupResults"></div>
+            <div id="f-ourPricing"></div>
+
+            <div class="field"><label for="f-shape">Shape</label><input id="f-shape" list="shapeOptions" placeholder="e.g. Round" required></div>
+            <div class="field"><label for="f-carat">Carat</label><input id="f-carat" type="text" placeholder="e.g. 2.15 or 1.5–2.0" required></div>
+            <div class="field"><label for="f-color">Color</label><input id="f-color" placeholder="e.g. F or D–G" required></div>
+            <div class="field"><label for="f-clarity">Clarity</label><input id="f-clarity" placeholder="e.g. VS1 or VVS–VS"></div>
+            <div class="field"><label for="f-cut">Cut</label><input id="f-cut" placeholder="e.g. Excellent"></div>
+            <div class="field"><label for="f-cert">Certificate</label><input id="f-cert" placeholder="e.g. GIA 2141567890"></div>
+            <div class="field">
+              <label for="f-priceType" id="f-priceType-label">Price type</label>
+              <select id="f-priceType">
+                <option value="per_carat">Rate ($ per carat)</option>
+                <option value="total">Amt (flat total $)</option>
+                <option value="back">Back (% off Rapaport)</option>
+              </select>
+            </div>
+            <div class="field"><label id="f-price-label" for="f-price">Asking price (USD)</label><input id="f-price" type="number" step="0.01"></div>
           </div>
-          <div class="field"><label id="f-price-label" for="f-price">Asking price (USD)</label><input id="f-price" type="number" step="0.01" required></div>
+
+          <!-- CREATE MODE: one or more stones, priced individually or as one combined lot -->
+          <div class="stone-section" id="createStoneSection" hidden>
+            <div id="stoneRows"></div>
+            <button type="button" class="btn btn-sm" id="addStoneRowBtn">+ Add another stone</button>
+
+            <div class="type-toggle" style="margin-top:16px;">
+              <label><input type="radio" name="priceMode" value="separate" checked> Different price per stone</label>
+              <label><input type="radio" name="priceMode" value="combined"> One combined price for all stones</label>
+            </div>
+
+            <div class="stone-row-price" id="combinedPriceBlock" hidden style="border-top:none; padding-top:0; margin-top:0;">
+              <div class="field"><label for="combinedPriceType">Price type (applies to every stone)</label>
+                <select id="combinedPriceType">
+                  <option value="per_carat">Rate ($ per carat, same rate for each stone)</option>
+                  <option value="total">Amt (one flat $ for the whole lot)</option>
+                  <option value="back">Back (% off Rapaport, same % for each stone)</option>
+                </select>
+              </div>
+              <div class="field"><label id="combinedPriceLabel" for="combinedPrice">Combined price</label><input id="combinedPrice" type="number" step="0.01"></div>
+            </div>
+
+            <div id="offerSummaryBox"></div>
+          </div>
+
           <div class="field wide"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="Anything the negotiating team should know…"></textarea></div>
           <div class="checkbox-row"><input type="checkbox" id="f-priority"><label for="f-priority">Mark as high priority</label></div>
         </div>
@@ -780,6 +819,8 @@
   var editingOfferId = null;
   var linkedStoneForNewOffer = null;
   var pollTimer = null;
+  var stoneRowIdCounter = 0;
+  var createStoneLinks = {}; // rowId -> linked inventory stone, for the multi-stone create form
 
   function clientById(id) { for (var i = 0; i < clients.length; i++) if (clients[i].id === id) return clients[i]; return null; }
 
@@ -1141,11 +1182,6 @@
     setInvStatus(parts.join(" · "));
   }
 
-  async function createOfferOnServer(payload) {
-    var data = await api("POST", "/api/offers", payload);
-    offers.unshift(data.offer);
-    return data.offer;
-  }
   async function patchOfferOnServer(id, patch) {
     var data = await api("PATCH", "/api/offers/" + id, patch);
     var idx = offers.findIndex(function (o) { return o.id === id; });
@@ -1757,6 +1793,222 @@
   });
 
   /* =========================================================================
+     Multi-stone create form — add several inventory stones to one client
+     offer in one go, each priced separately or via one shared/averaged price.
+  ========================================================================= */
+  function stoneRowHtml(rowId) {
+    return '' +
+      '<div class="stone-row" data-row-id="' + rowId + '">' +
+        '<div class="stone-row-head"><b>Stone</b><button type="button" class="btn btn-sm btn-ghost" data-remove-row="' + rowId + '">Remove</button></div>' +
+        '<div class="field wide"><label>Link one of our stones (optional)</label>' +
+          '<input class="cs-lookup" data-row="' + rowId + '" placeholder="Type Stone ID or Report/Certificate No…" autocomplete="off"></div>' +
+        '<div class="cs-lookup-results" data-row="' + rowId + '"></div>' +
+        '<div class="cs-our-pricing" data-row="' + rowId + '"></div>' +
+        '<div class="field"><label>Shape</label><input class="cs-shape" data-row="' + rowId + '" list="shapeOptions" placeholder="e.g. Round" required></div>' +
+        '<div class="field"><label>Carat</label><input class="cs-carat" data-row="' + rowId + '" type="text" placeholder="e.g. 2.15" required></div>' +
+        '<div class="field"><label>Color</label><input class="cs-color" data-row="' + rowId + '" placeholder="e.g. F" required></div>' +
+        '<div class="field"><label>Clarity</label><input class="cs-clarity" data-row="' + rowId + '" placeholder="e.g. VS1"></div>' +
+        '<div class="field"><label>Cut</label><input class="cs-cut" data-row="' + rowId + '" placeholder="e.g. Excellent"></div>' +
+        '<div class="field"><label>Certificate</label><input class="cs-cert" data-row="' + rowId + '" placeholder="e.g. GIA 2141567890"></div>' +
+        '<div class="stone-row-price" data-row-price="' + rowId + '">' +
+          '<div class="field"><label>Price type</label><select class="cs-priceType" data-row="' + rowId + '">' +
+            '<option value="per_carat">Rate ($ per carat)</option>' +
+            '<option value="total">Amt (flat total $)</option>' +
+            '<option value="back">Back (% off Rapaport)</option>' +
+          '</select></div>' +
+          '<div class="field"><label class="cs-price-label" data-row="' + rowId + '">Asking price (USD)</label>' +
+            '<input class="cs-price" data-row="' + rowId + '" type="number" step="0.01"></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renumberStoneRows() {
+    var rows = document.querySelectorAll("#stoneRows .stone-row");
+    rows.forEach(function (rowEl, i) {
+      rowEl.querySelector(".stone-row-head b").textContent = "Stone " + (i + 1);
+      var removeBtn = rowEl.querySelector("[data-remove-row]");
+      if (removeBtn) removeBtn.hidden = rows.length <= 1;
+    });
+  }
+
+  function newStoneRow() {
+    var rowId = String(++stoneRowIdCounter);
+    document.getElementById("stoneRows").insertAdjacentHTML("beforeend", stoneRowHtml(rowId));
+    renumberStoneRows();
+    syncStoneRowPriceLabel(rowId);
+    var rowEl = document.querySelector('.stone-row[data-row-id="' + rowId + '"]');
+    rowEl.querySelector(".stone-row-price").hidden = document.querySelector("input[name='priceMode']:checked").value === "combined";
+    updateOfferSummary();
+  }
+
+  function resetCreateStoneRows() {
+    document.getElementById("stoneRows").innerHTML = "";
+    createStoneLinks = {};
+    document.querySelector("input[name='priceMode'][value='separate']").checked = true;
+    newStoneRow();
+    syncPriceModeUI();
+  }
+
+  function syncPriceModeUI() {
+    var isCombined = document.querySelector("input[name='priceMode']:checked").value === "combined";
+    document.getElementById("combinedPriceBlock").hidden = !isCombined;
+    document.querySelectorAll("#stoneRows .stone-row-price").forEach(function (el) { el.hidden = isCombined; });
+    syncCombinedPriceLabel();
+    updateOfferSummary();
+  }
+
+  function syncCombinedPriceLabel() {
+    var pt = document.getElementById("combinedPriceType").value;
+    document.getElementById("combinedPriceLabel").textContent =
+      pt === "back" ? "Back % off Rapaport (e.g. -38) — same for every stone" :
+      pt === "total" ? "Combined flat total for all stones (USD) — split evenly" :
+      "Rate per carat (USD) — same for every stone";
+  }
+
+  function syncStoneRowPriceLabel(rowId) {
+    var rowEl = document.querySelector('.stone-row[data-row-id="' + rowId + '"]');
+    if (!rowEl) return;
+    var pt = rowEl.querySelector(".cs-priceType").value;
+    var isSell = document.querySelector("input[name='offerType']:checked").value === "sell";
+    rowEl.querySelector(".cs-price-label").textContent = pt === "back" ? "Back % off Rapaport (e.g. -38)" : (isSell ? "Asking price (USD)" : "Budget (USD)");
+  }
+
+  function syncAllStoneRowPriceLabels() {
+    document.querySelectorAll("#stoneRows .stone-row").forEach(function (rowEl) { syncStoneRowPriceLabel(rowEl.getAttribute("data-row-id")); });
+    syncCombinedPriceLabel();
+  }
+
+  /** Resolves each row's own price/priceType — either what the office typed
+   *  for that specific stone, or the one shared "combined" price applied to
+   *  every stone (split evenly across stones when it's a flat total). */
+  function collectStoneRows() {
+    var rowEls = document.querySelectorAll("#stoneRows .stone-row");
+    var priceMode = document.querySelector("input[name='priceMode']:checked").value;
+    var combinedType = document.getElementById("combinedPriceType").value;
+    var combinedPrice = Number(document.getElementById("combinedPrice").value) || 0;
+    var stones = [];
+    rowEls.forEach(function (rowEl) {
+      var rowId = rowEl.getAttribute("data-row-id");
+      var priceType, price;
+      if (priceMode === "combined") {
+        priceType = combinedType;
+        price = combinedType === "total" ? (combinedPrice / rowEls.length) : combinedPrice;
+      } else {
+        priceType = rowEl.querySelector(".cs-priceType").value;
+        price = Number(rowEl.querySelector(".cs-price").value) || 0;
+      }
+      var linked = createStoneLinks[rowId] || null;
+      stones.push({
+        shape: rowEl.querySelector(".cs-shape").value.trim(),
+        carat: rowEl.querySelector(".cs-carat").value.trim(),
+        color: rowEl.querySelector(".cs-color").value.trim(),
+        clarity: rowEl.querySelector(".cs-clarity").value.trim(),
+        cut: rowEl.querySelector(".cs-cut").value.trim(),
+        cert: rowEl.querySelector(".cs-cert").value.trim(),
+        priceType: priceType, price: price,
+        matchedStone: linked ? toChipShape(linked) : null
+      });
+    });
+    return stones;
+  }
+
+  function updateOfferSummary() {
+    var box = document.getElementById("offerSummaryBox");
+    if (!box) return;
+    var rowEls = document.querySelectorAll("#stoneRows .stone-row");
+    if (!rowEls.length) { box.innerHTML = ""; return; }
+    var stones = collectStoneRows();
+    var totalCarat = 0, totalValue = 0, hasValue = false;
+    stones.forEach(function (s, i) {
+      var carat = parseFloat(s.carat) || 0;
+      totalCarat += carat;
+      var rowId = rowEls[i].getAttribute("data-row-id");
+      var link = createStoneLinks[rowId];
+      if (s.priceType === "total" && s.price) { totalValue += s.price; hasValue = true; }
+      else if (s.priceType === "per_carat" && s.price) { totalValue += s.price * carat; hasValue = true; }
+      else if (s.priceType === "back" && s.price && link && link.rapRate) { totalValue += link.rapRate * (1 + s.price / 100) * carat; hasValue = true; }
+    });
+    box.innerHTML = '<div class="our-pricing-box"><div class="our-pricing-title">Batch summary</div><div class="our-pricing-grid">' +
+      '<div><span>Stones</span><b>' + stones.length + '</b></div>' +
+      '<div><span>Total carat</span><b>' + totalCarat.toFixed(2) + 'ct</b></div>' +
+      (hasValue ? '<div><span>Est. total value</span><b>' + money2(totalValue) + '</b></div>' : '') +
+      '</div></div>';
+  }
+
+  async function createOffersBatchOnServer(payload) {
+    var data = await api("POST", "/api/offers/batch", payload);
+    Array.prototype.unshift.apply(offers, data.offers);
+    return data.offers;
+  }
+
+  document.getElementById("addStoneRowBtn").addEventListener("click", function () { newStoneRow(); });
+  document.querySelectorAll("input[name='priceMode']").forEach(function (r) { r.addEventListener("change", syncPriceModeUI); });
+  document.getElementById("combinedPriceType").addEventListener("change", function () { syncCombinedPriceLabel(); updateOfferSummary(); });
+  document.getElementById("combinedPrice").addEventListener("input", updateOfferSummary);
+
+  document.getElementById("stoneRows").addEventListener("input", function (e) {
+    var el = e.target;
+    var rowEl = el.closest(".stone-row");
+    if (!rowEl) return;
+    var rowId = rowEl.getAttribute("data-row-id");
+    if (el.classList.contains("cs-lookup")) {
+      var q = el.value.trim().toLowerCase();
+      delete createStoneLinks[rowId];
+      rowEl.querySelector(".cs-our-pricing").innerHTML = "";
+      var resultsEl = rowEl.querySelector(".cs-lookup-results");
+      if (!q) { resultsEl.innerHTML = ""; updateOfferSummary(); return; }
+      var results = inventory.filter(function (s) { return s.stoneId.toLowerCase().indexOf(q) !== -1 || String(s.reportNo).toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+      if (!results.length) { resultsEl.innerHTML = '<div class="lookup-status muted">' + (inventory.length ? "No match found." : "Connect AutoMail inventory first (Inventory tab).") + "</div>"; updateOfferSummary(); return; }
+      resultsEl.innerHTML = results.map(function (s) {
+        return '<div class="match-row"><span>' + esc(s.stoneId) + " · " + esc(s.shape) + " " + s.weight + "ct " + esc(s.color) + "/" + esc(s.clarity) + " · " + esc(s.lab) + '</span>' +
+          '<button type="button" class="btn btn-sm" data-lookup-stone="' + esc(s.stoneId) + '" data-row="' + rowId + '">Use this</button></div>';
+      }).join("");
+      updateOfferSummary();
+    } else {
+      updateOfferSummary();
+    }
+  });
+
+  document.getElementById("stoneRows").addEventListener("change", function (e) {
+    var el = e.target;
+    var rowEl = el.closest(".stone-row");
+    if (!rowEl || !el.classList.contains("cs-priceType")) return;
+    syncStoneRowPriceLabel(rowEl.getAttribute("data-row-id"));
+    updateOfferSummary();
+  });
+
+  document.getElementById("stoneRows").addEventListener("click", function (e) {
+    var lookupBtn = e.target.closest("[data-lookup-stone]");
+    if (lookupBtn) {
+      var rowId = lookupBtn.getAttribute("data-row");
+      var rowEl = document.querySelector('.stone-row[data-row-id="' + rowId + '"]');
+      var stone = inventory.find(function (s) { return s.stoneId === lookupBtn.getAttribute("data-lookup-stone"); });
+      if (!stone || !rowEl) return;
+      createStoneLinks[rowId] = stone;
+      rowEl.querySelector(".cs-lookup").value = stone.stoneId;
+      rowEl.querySelector(".cs-lookup-results").innerHTML = '<div class="lookup-status ok">Linked ✓ ' + esc(stone.stoneId) + " — fields below filled in, still editable.</div>";
+      rowEl.querySelector(".cs-our-pricing").innerHTML = ourPricingHtml(stone);
+      rowEl.querySelector(".cs-shape").value = stone.shape;
+      rowEl.querySelector(".cs-carat").value = stone.weight;
+      rowEl.querySelector(".cs-color").value = stone.color;
+      rowEl.querySelector(".cs-clarity").value = stone.clarity;
+      rowEl.querySelector(".cs-cut").value = stone.cut;
+      rowEl.querySelector(".cs-cert").value = (stone.lab || "") + (stone.reportNo ? " " + stone.reportNo : "");
+      updateOfferSummary();
+      return;
+    }
+    var removeBtn = e.target.closest("[data-remove-row]");
+    if (removeBtn) {
+      var rowId2 = removeBtn.getAttribute("data-remove-row");
+      var rowEl2 = document.querySelector('.stone-row[data-row-id="' + rowId2 + '"]');
+      if (rowEl2) rowEl2.remove();
+      delete createStoneLinks[rowId2];
+      renumberStoneRows();
+      updateOfferSummary();
+    }
+  });
+
+  /* =========================================================================
      EVENTS — New Offer modal (incl. inventory stone lookup)
   ========================================================================= */
   var overlay = document.getElementById("modalOverlay");
@@ -1766,7 +2018,7 @@
     var priceType = document.getElementById("f-priceType").value;
     priceTypeLabelEl.textContent = priceType === "back" ? "Back % off Rapaport (e.g. -38)" : (isSell ? "Asking price (USD)" : "Budget (USD)");
   }
-  document.querySelectorAll("input[name='offerType']").forEach(function (r) { r.addEventListener("change", syncPriceLabel); });
+  document.querySelectorAll("input[name='offerType']").forEach(function (r) { r.addEventListener("change", function () { syncPriceLabel(); syncAllStoneRowPriceLabels(); }); });
   document.getElementById("f-priceType").addEventListener("change", syncPriceLabel);
 
   document.getElementById("f-stoneLookup").addEventListener("input", function (e) {
@@ -1803,6 +2055,12 @@
     editingOfferId = offerToEdit ? offerToEdit.id : null;
     document.getElementById("modalTitle").textContent = offerToEdit ? "Edit offer" : "Log a new client offer";
     document.getElementById("offerFormSubmitBtn").textContent = offerToEdit ? "Save changes" : "Save offer";
+    document.getElementById("editStoneSection").hidden = !offerToEdit;
+    document.getElementById("createStoneSection").hidden = !!offerToEdit;
+    // A `hidden` element isn't exempt from constraint validation (only `disabled`/type=hidden are) —
+    // toggle `required` too, or the hidden section's empty fields silently block submission.
+    ["f-shape", "f-carat", "f-color"].forEach(function (id) { document.getElementById(id).required = !!offerToEdit; });
+    if (!offerToEdit) resetCreateStoneRows();
     if (offerToEdit) {
       var client = clientById(offerToEdit.clientId);
       document.querySelector("input[name='offerType'][value='" + offerToEdit.type + "']").checked = true;
@@ -1833,6 +2091,9 @@
     document.getElementById("offerForm").reset();
     document.getElementById("f-stoneLookupResults").innerHTML = "";
     document.getElementById("f-ourPricing").innerHTML = "";
+    document.getElementById("stoneRows").innerHTML = "";
+    document.getElementById("offerSummaryBox").innerHTML = "";
+    createStoneLinks = {};
     linkedStoneForNewOffer = null;
     editingOfferId = null;
     document.getElementById("modalTitle").textContent = "Log a new client offer";
@@ -1862,32 +2123,38 @@
   document.getElementById("offerForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     var type = document.querySelector("input[name='offerType']:checked").value;
-    var fields = {
+    var common = {
       clientName: document.getElementById("f-client").value,
       contact: document.getElementById("f-contact").value.trim(),
       channel: document.getElementById("f-channel").value,
       type: type,
-      shape: document.getElementById("f-shape").value,
-      carat: document.getElementById("f-carat").value.trim(),
-      color: document.getElementById("f-color").value.trim(),
-      clarity: document.getElementById("f-clarity").value.trim(),
-      cut: document.getElementById("f-cut").value.trim(),
-      cert: document.getElementById("f-cert").value.trim(),
-      priceType: document.getElementById("f-priceType").value,
-      price: Number(document.getElementById("f-price").value) || 0,
       priority: document.getElementById("f-priority").checked,
       notes: document.getElementById("f-notes").value.trim()
     };
     try {
       var offer;
       if (editingOfferId) {
+        // Edit mode still concerns exactly one stone — unchanged single-stone flow.
+        var fields = Object.assign({}, common, {
+          shape: document.getElementById("f-shape").value,
+          carat: document.getElementById("f-carat").value.trim(),
+          color: document.getElementById("f-color").value.trim(),
+          clarity: document.getElementById("f-clarity").value.trim(),
+          cut: document.getElementById("f-cut").value.trim(),
+          cert: document.getElementById("f-cert").value.trim(),
+          priceType: document.getElementById("f-priceType").value,
+          price: Number(document.getElementById("f-price").value) || 0
+        });
         var existing = offers.find(function (o) { return o.id === editingOfferId; });
         fields.version = existing.version;
         if (linkedStoneForNewOffer) fields.matchedStonesAdd = toChipShape(linkedStoneForNewOffer);
         offer = await patchOfferOnServer(editingOfferId, fields);
       } else {
-        fields.matchedStones = linkedStoneForNewOffer ? [toChipShape(linkedStoneForNewOffer)] : [];
-        offer = await createOfferOnServer(fields);
+        // Create mode: one or more stones from inventory, priced separately or via one shared/averaged price.
+        var stones = collectStoneRows();
+        if (!stones.length) { alert("Add at least one stone."); return; }
+        var created = await createOffersBatchOnServer(Object.assign({}, common, { stones: stones }));
+        offer = created[0];
       }
       await loadClientsFromServer();
       populateClientDatalist();
