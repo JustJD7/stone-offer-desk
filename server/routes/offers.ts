@@ -10,6 +10,20 @@ const router = Router();
 
 interface ThreadMessage { author: "client" | "company"; message: string; ts: string; price?: number; by?: string }
 interface MatchedStone { stoneId: string; rate?: number; rapRate?: number; amt?: number; [key: string]: unknown }
+interface StoneInput {
+  shape?: string; carat?: string; color?: string; clarity?: string; cut?: string; cert?: string;
+  priceType?: string; price?: number; matchedStone?: MatchedStone | null;
+}
+
+// Shared by POST /batch (new offer) and PATCH /:id (editing a 2+-stone offer's whole stone list) —
+// both need the exact same jsonb shape for the `stones` column.
+function normalizeStones(stones: StoneInput[]) {
+  return stones.map((s) => ({
+    shape: String(s.shape ?? ""), carat: String(s.carat ?? ""), color: String(s.color ?? ""), clarity: String(s.clarity ?? ""),
+    cut: String(s.cut ?? ""), cert: String(s.cert ?? ""), priceType: s.priceType, price: Number(s.price) || 0,
+    matchedStone: s.matchedStone ?? null
+  }));
+}
 
 router.get("/", async (_req, res) => {
   const rows = await sql`select * from offers order by created_at desc`;
@@ -67,11 +81,7 @@ router.post("/batch", blockSuperadmin, async (req, res) => {
   const createdByOffice = req.user!.name;
   const createdAt = new Date().toISOString();
 
-  const stonesJson = stones.map((s) => ({
-    shape: String(s.shape ?? ""), carat: String(s.carat ?? ""), color: String(s.color ?? ""), clarity: String(s.clarity ?? ""),
-    cut: String(s.cut ?? ""), cert: String(s.cert ?? ""), priceType: s.priceType, price: Number(s.price) || 0,
-    matchedStone: s.matchedStone ?? null
-  }));
+  const stonesJson = normalizeStones(stones);
   const first = stonesJson[0];
   const matchedStones = stonesJson.filter((s) => s.matchedStone).map((s) => s.matchedStone);
   const stoneList = stonesJson.map((s) => `${s.shape} ${s.carat}ct`).join(", ");
@@ -179,7 +189,7 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
     appendMessage?: ThreadMessage; matchedStonesAdd?: MatchedStone; matchedStonesRemove?: string;
     clientName?: string; contact?: string; channel?: string; type?: string;
     shape?: string; carat?: string; color?: string; clarity?: string; cut?: string; cert?: string;
-    priceType?: string; price?: number; notes?: string;
+    priceType?: string; price?: number; notes?: string; stones?: StoneInput[];
     soldPriceType?: string; soldPrice?: number; rejectionReason?: string;
   };
 
@@ -216,13 +226,33 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
   }
 
   let matchedStones = (row.matched_stones as MatchedStone[]) ?? [];
-  if (body.matchedStonesAdd) {
-    if (!matchedStones.some((m) => m.stoneId === body.matchedStonesAdd!.stoneId)) {
-      matchedStones = [...matchedStones, body.matchedStonesAdd];
+  // Editing a 2+-stone offer replaces its whole stone list in one go (the multi-stone edit form
+  // always submits every row, matching how POST /batch builds a new one) — mutually exclusive
+  // with matchedStonesAdd/Remove, which only the single-stone edit form ever sends.
+  let editedFirst: ReturnType<typeof normalizeStones>[number] | null = null;
+  let stonesColumn = JSON.stringify(row.stones ?? []);
+  let stonesCount = 0;
+  if (Array.isArray(body.stones) && body.stones.length) {
+    const stonesJson = normalizeStones(body.stones);
+    for (const s of stonesJson) {
+      if (!["per_carat", "total", "back"].includes(String(s.priceType))) {
+        res.status(400).json({ error: "Each stone needs a valid price type." });
+        return;
+      }
     }
-  }
-  if (body.matchedStonesRemove) {
-    matchedStones = matchedStones.filter((m) => m.stoneId !== body.matchedStonesRemove);
+    editedFirst = stonesJson[0];
+    stonesCount = stonesJson.length;
+    matchedStones = stonesJson.filter((s) => s.matchedStone).map((s) => s.matchedStone) as MatchedStone[];
+    stonesColumn = stonesCount > 1 ? JSON.stringify(stonesJson) : "[]";
+  } else {
+    if (body.matchedStonesAdd) {
+      if (!matchedStones.some((m) => m.stoneId === body.matchedStonesAdd!.stoneId)) {
+        matchedStones = [...matchedStones, body.matchedStonesAdd];
+      }
+    }
+    if (body.matchedStonesRemove) {
+      matchedStones = matchedStones.filter((m) => m.stoneId !== body.matchedStonesRemove);
+    }
   }
 
   const status = body.status ?? row.status;
@@ -234,14 +264,14 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
     clientId = await resolveOrCreateClient(body.clientName.trim());
   }
   const type = body.type !== undefined ? body.type : row.type;
-  const priceType = body.priceType !== undefined ? body.priceType : row.price_type;
-  const price = body.price !== undefined ? Number(body.price) || 0 : row.price;
-  const shape = body.shape !== undefined ? body.shape : row.shape;
-  const carat = body.carat !== undefined ? body.carat : row.carat;
-  const color = body.color !== undefined ? body.color : row.color;
-  const clarity = body.clarity !== undefined ? body.clarity : row.clarity;
-  const cut = body.cut !== undefined ? body.cut : row.cut;
-  const cert = body.cert !== undefined ? body.cert : row.cert;
+  const priceType = editedFirst ? editedFirst.priceType : (body.priceType !== undefined ? body.priceType : row.price_type);
+  const price = editedFirst ? editedFirst.price : (body.price !== undefined ? Number(body.price) || 0 : row.price);
+  const shape = editedFirst ? editedFirst.shape : (body.shape !== undefined ? body.shape : row.shape);
+  const carat = editedFirst ? editedFirst.carat : (body.carat !== undefined ? body.carat : row.carat);
+  const color = editedFirst ? editedFirst.color : (body.color !== undefined ? body.color : row.color);
+  const clarity = editedFirst ? editedFirst.clarity : (body.clarity !== undefined ? body.clarity : row.clarity);
+  const cut = editedFirst ? editedFirst.cut : (body.cut !== undefined ? body.cut : row.cut);
+  const cert = editedFirst ? editedFirst.cert : (body.cert !== undefined ? body.cert : row.cert);
   const contact = body.contact !== undefined ? body.contact : row.contact;
   const channel = body.channel !== undefined ? body.channel : row.channel;
   const notes = body.notes !== undefined ? body.notes : row.notes;
@@ -258,7 +288,7 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
       shape = ${shape}, carat = ${carat}, color = ${color}, clarity = ${clarity}, cut = ${cut}, cert = ${cert},
       contact = ${contact}, channel = ${channel}, notes = ${notes},
       status = ${status}, priority = ${priority}, thread = ${JSON.stringify(thread)},
-      matched_stones = ${JSON.stringify(matchedStones)}, unread = ${unread},
+      matched_stones = ${JSON.stringify(matchedStones)}, stones = ${stonesColumn}, unread = ${unread},
       sold_price_type = ${soldPriceType}, sold_price = ${soldPrice}, sold_at = ${soldAt},
       rejection_reason = ${rejectionReason},
       version = version + 1, updated_at = now()
@@ -291,9 +321,11 @@ router.patch("/:id", blockSuperadmin, async (req, res) => {
   } else if (
     body.clientName !== undefined || body.contact !== undefined || body.channel !== undefined || body.type !== undefined ||
     body.shape !== undefined || body.carat !== undefined || body.color !== undefined || body.clarity !== undefined ||
-    body.cut !== undefined || body.cert !== undefined || body.priceType !== undefined || body.price !== undefined || body.notes !== undefined
+    body.cut !== undefined || body.cert !== undefined || body.priceType !== undefined || body.price !== undefined ||
+    body.notes !== undefined || body.stones !== undefined
   ) {
-    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_edited", detail: `${shape} ${carat}ct`, offerId: id });
+    const detail = stonesCount > 1 ? `${stonesCount} stones` : `${shape} ${carat}ct`;
+    await logActivity({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: "offer_edited", detail, offerId: id });
   }
 
   res.status(200).json({ offer: rowToOffer(updated[0]) });
