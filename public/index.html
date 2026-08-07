@@ -765,6 +765,7 @@
               <label for="bulkAdjustDelta">by</label>
               <input id="bulkAdjustDelta" type="number" step="0.01" placeholder="e.g. -2 or -200">
               <button type="button" class="btn btn-sm" id="bulkAdjustApplyBtn">Apply to all stones</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="resetToOurPriceBtn" title="Reset every linked stone's price back to our own valuation, so you can re-apply an adjustment cleanly">Reset to our price</button>
               <span class="hint" id="bulkAdjustStatus"></span>
             </div>
 
@@ -2345,6 +2346,35 @@
     statusEl.textContent = applied
       ? "Applied " + (delta > 0 ? "+" : "") + delta + " to " + applied + " of " + rowEls.length + " stone" + (rowEls.length === 1 ? "" : "s") + " (" + metricLabel + ")."
       : "No stones use " + metricLabel + " pricing — nothing changed.";
+    updateOfferSummary();
+  });
+
+  /** Resets each linked stone's price field back to our own valuation, in whatever
+   *  price type that row currently uses — an undo/rebaseline for the bulk adjuster
+   *  above (e.g. hit Apply twice by mistake, reset, then apply the delta once).
+   *  A row with no linked inventory stone has no "our price" to reset to and is
+   *  left untouched. Note the Back-% field stores a *negative* number (client
+   *  price below Rap, e.g. -38 — see the field's own placeholder), while
+   *  ourMetrics().back returns a positive discount magnitude, so it has to be
+   *  negated here to land the field on our own rate, not the mirror image of it. */
+  document.getElementById("resetToOurPriceBtn").addEventListener("click", function () {
+    var statusEl = document.getElementById("bulkAdjustStatus");
+    var rowEls = document.querySelectorAll("#stoneRows .stone-row");
+    var reset = 0;
+    rowEls.forEach(function (rowEl) {
+      var rowId = rowEl.getAttribute("data-row-id");
+      var link = createStoneLinks[rowId];
+      if (!link) return;
+      var our = ourMetrics(link);
+      var pt = rowEl.querySelector(".cs-priceType").value;
+      var val = pt === "back" ? (our.back != null ? -our.back : null) : pt === "per_carat" ? our.rate : our.amount;
+      if (val == null) return;
+      rowEl.querySelector(".cs-price").value = Math.round(val * 100) / 100;
+      reset++;
+    });
+    statusEl.textContent = reset
+      ? "Reset " + reset + " of " + rowEls.length + " stone" + (rowEls.length === 1 ? "" : "s") + " to our price (only linked stones can be reset)."
+      : "No linked stones to reset — link a stone via lookup first.";
     updateOfferSummary();
   });
 
